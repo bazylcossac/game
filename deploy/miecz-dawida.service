@@ -1,0 +1,21 @@
+[Unit]
+Description=Miecz Dawida - serwer gry
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=miecz-dawida
+Group=miecz-dawida
+EnvironmentFile=/etc/miecz-dawida.env
+Environment=HOME=/var/lib/miecz-dawida
+WorkingDirectory=/opt/miecz-dawida/game
+ExecStart=/opt/miecz-dawida/bin/godot --headless --path /opt/miecz-dawida/game -- --server --port=${PORT} --mode=${MODE} --map=${MAP} --bots=${BOTS} --difficulty=${DIFFICULTY} --seed=${SEED}
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

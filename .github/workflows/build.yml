@@ -1,0 +1,94 @@
+name: Buildy
+
+# Builds the game for Windows and macOS on every push to main and on tags like v0.10.0.
+# The files land on the Releases page: "najnowsza" always holds the last build of main.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2-stable
+  GODOT_DOTTED: 4.7.2.stable
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pamięć podręczna Godota
+        id: godot-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-download
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Pobierz Godota i szablony eksportu
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot-download
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          curl -fsSL -o ~/godot-download/godot.zip "${base}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          curl -fsSL -o ~/godot-download/templates.tpz "${base}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+
+      - name: Zainstaluj Godota
+        run: |
+          unzip -q -o ~/godot-download/godot.zip -d ~/godot
+          mv ~/godot/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot/godot
+          chmod +x ~/godot/godot
+          templates=~/.local/share/godot/export_templates/${GODOT_DOTTED}
+          mkdir -p "$templates"
+          unzip -q -o ~/godot-download/templates.tpz -d ~/templates
+          cp ~/templates/templates/* "$templates/"
+
+      - name: Zaimportuj zasoby
+        run: ~/godot/godot --headless --path . --import
+
+      - name: Zbuduj wersję na Windows
+        run: |
+          mkdir -p export/windows
+          ~/godot/godot --headless --path . --export-release "Windows" export/windows/MieczDawida.exe
+          test -s export/windows/MieczDawida.exe
+
+      - name: Zbuduj wersję na macOS
+        run: |
+          mkdir -p export/macos
+          ~/godot/godot --headless --path . --export-release "macOS" export/macos/MieczDawida.zip
+          test -s export/macos/MieczDawida.zip
+
+      - name: Przygotuj pliki
+        run: |
+          mkdir -p dist
+          mv export/windows/MieczDawida.exe dist/MieczDawida-windows.exe
+          mv export/macos/MieczDawida.zip dist/MieczDawida-macos.zip
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MieczDawida
+          path: dist/*
+          compression-level: 0
+
+      - name: Opublikuj najnowszy build
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete najnowsza --cleanup-tag --yes || true
+          gh release create najnowsza dist/* --prerelease --title "Najnowszy build" --target "${GITHUB_SHA}" --notes "Automatyczny build z commita ${GITHUB_SHA}."
+
+      - name: Opublikuj wydanie
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/* --title "${GITHUB_REF_NAME}" --generate-notes

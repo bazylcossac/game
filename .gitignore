@@ -1,0 +1,9 @@
+.godot/
+*.tmp
+*.translation
+export/
+paczka_vps/
+
+__pycache__/
+*.blend1
+dist/
