@@ -1,7 +1,8 @@
 extends Node
 ## Root of the app. Swaps between the menu and a running world, and picks the launch
 ## mode from the command line. Pass arguments after `--`, for example:
-##   Godot --headless -- --server --port=7777 --mode=pvp --map=rynek --bots=12 --difficulty=1
+##   Godot --headless -- --server --port=7777 --mode=pvp --map=rynek --name="Mój serwer"
+## A dedicated server is for players only. --bots=12 --difficulty=1 fills it with bots after all.
 
 var _menu: MainMenu = null
 var _world: World = null
@@ -11,6 +12,7 @@ var _tester: Node = null
 
 func _ready() -> void:
 	Net.world_requested.connect(_on_world_requested)
+	Net.side_requested.connect(_on_side_requested)
 	Net.connect_failed.connect(_on_connect_failed)
 	Net.session_ended.connect(_on_session_ended)
 	if Settings.has_arg("server"):
@@ -25,9 +27,11 @@ func _ready() -> void:
 
 func _start_dedicated() -> void:
 	var port := int(Settings.arg("port", str(C.DEFAULT_PORT)))
+	var bots := int(Settings.arg("bots", "0"))
 	var cfg := Modes.normalize({
 		"seed": int(Settings.arg("seed", "1943")),
-		"bots_per_team": int(Settings.arg("bots", "12")),
+		"bots_per_team": bots,
+		"no_bots": bots <= 0,
 		"difficulty": int(Settings.arg("difficulty", "1")),
 		"mode": Settings.arg("mode"),
 		"map": Settings.arg("map"),
@@ -37,6 +41,7 @@ func _start_dedicated() -> void:
 		printerr("[server] nie ma trybu %s, dostępne: %s" % [Settings.arg("mode"), ", ".join(Modes.LIST.keys())])
 	if Settings.arg("map") != "" and Settings.arg("map") != cfg["map"]:
 		printerr("[server] tryb %s nie ma mapy %s, dostępne: %s" % [cfg["mode"], Settings.arg("map"), ", ".join(Modes.mode_of(cfg)["maps"])])
+	Net.server_name = Settings.arg("name").strip_edges().left(40)
 	var err := Net.start_dedicated(cfg, port)
 	if err != OK:
 		printerr("[server] nie można otworzyć portu %d: %s" % [port, error_string(err)])
@@ -55,6 +60,7 @@ func _open_menu(status: String) -> void:
 		_menu.play_offline.connect(func(cfg: Dictionary) -> void: Net.start_offline(cfg))
 		_menu.host_game.connect(_on_host)
 		_menu.join_game.connect(_on_join)
+	_menu.close_side_pick()
 	_menu.set_status(status)
 
 
@@ -66,16 +72,18 @@ func _on_host(cfg: Dictionary, port: int) -> void:
 
 func _on_join(address: String, port: int) -> void:
 	var nick := Settings.player_name.strip_edges()
-	var err := Net.start_client(address, port, nick if nick != "" else "Bojownik")
+	var err := Net.start_client(address, port, nick if nick != "" else "Bojownik", true)
 	if _menu:
 		_menu.set_status(T.t("Łączenie z %s:%d...") % [address, port] if err == OK else T.t("Błąd połączenia: %s") % error_string(err))
 
 
+func _on_side_requested(cfg: Dictionary, counts: Array) -> void:
+	if _menu:
+		_menu.show_side_pick(cfg, counts)
+
+
 func _on_connect_failed(reason: String) -> void:
-	if _world:
-		_open_menu(reason)
-	elif _menu:
-		_menu.set_status(reason)
+	_open_menu(reason)
 
 
 func _on_session_ended(reason: String) -> void:

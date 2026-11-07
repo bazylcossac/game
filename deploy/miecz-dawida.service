@@ -10,7 +10,7 @@ Group=miecz-dawida
 EnvironmentFile=/etc/miecz-dawida.env
 Environment=HOME=/var/lib/miecz-dawida
 WorkingDirectory=/opt/miecz-dawida/game
-ExecStart=/opt/miecz-dawida/bin/godot --headless --path /opt/miecz-dawida/game -- --server --port=${PORT} --mode=${MODE} --map=${MAP} --bots=${BOTS} --difficulty=${DIFFICULTY} --seed=${SEED}
+ExecStart=/opt/miecz-dawida/bin/godot --headless --path /opt/miecz-dawida/game -- --server --port=${PORT} --mode=${MODE} --map=${MAP} --name=${NAME} --seed=${SEED}
 Restart=always
 RestartSec=5
 NoNewPrivileges=true

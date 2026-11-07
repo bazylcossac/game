@@ -27,6 +27,9 @@ Wersja 0.9.0 buduje Neonową Dzielnicę od nowa jako duże miasto 520 × 700 m z
 dla czołgów i mechów oraz zmienia balans: czołg pada po 6 rakietach, granaty go ranią, a strzały
 z broni ręcznej ledwo drapią. Szczegóły: `WERSJA_0_9_0.md`.
 
+Wersja 0.11.0 ma listę serwerów z pingiem, serwer bez botów, wybór drużyny po dołączeniu, ping w tabeli pod Tab
+i odrodzenie z menu pod Esc. Szczegóły: `WERSJA_0_11_0.md`.
+
 Wersja 0.8.0 ma nowe menu z kartami trybów, map i stron oraz język angielski. Zastępuje Rzeszę grywalnym Żelaznym Imperium, dodaje wybór strony, nowe roboty
 i broń Imperium, granaty dymne i zapalające oraz samotną obsługę działka w czołgu.
 Szczegóły: `WERSJA_0_8_0.md`.
@@ -225,8 +228,10 @@ silnik przełącza je na tańszy model. Pliki źródłowe nie są importowane po
 
 ## Serwer na VPS
 
-Serwer to ten sam projekt uruchomiony bez grafiki. Trafienia, zdrowie, flagi, monety, czołgi
-i boty liczy serwer, a gracze łączą się do niego przez Gra sieciowa i Dołącz.
+Serwer to ten sam projekt uruchomiony bez grafiki. Trafienia, zdrowie, flagi, monety i czołgi
+liczy serwer. Grają na nim sami gracze, bez botów. Dołącza się w Gra sieciowa: lista serwerów
+pokazuje tryb, mapę, graczy i ping, a drużynę wybiera się po dołączeniu. Listę trzyma `C.SERVERS`.
+Lista pyta serwer o dane na tym samym porcie co gra, więc nie trzeba otwierać nic więcej.
 
 Instalacja na Debianie lub Ubuntu (64-bit x86):
 
@@ -234,15 +239,17 @@ Instalacja na Debianie lub Ubuntu (64-bit x86):
 2. Skopiuj go na VPS: `scp -r paczka_vps root@ADRES_VPS:/root/`
 3. Na VPS: `cd /root/paczka_vps && sudo bash install.sh`
 4. Otwórz port **7777 UDP** w panelu dostawcy VPS. Skrypt otwiera go tylko w `ufw`.
-5. W grze: Gra sieciowa, wpisz adres VPS, Dołącz.
+5. Wpisz adres VPS do `C.SERVERS` w `scripts/core/c.gd`. W grze: Gra sieciowa, Dołącz.
 
 Skrypt pobiera Godota, instaluje usługę, która startuje z systemem i wraca po awarii.
-Tryb, mapę, liczbę botów, poziom i port ustawisz w `/etc/miecz-dawida.env`. Postępy graczy leżą
+Tryb, mapę, nazwę i port ustawisz w `/etc/miecz-dawida.env`. Postępy graczy leżą
 w katalogu domowym usługi (`/var/lib/miecz-dawida`), więc aktualizacja gry ich nie kasuje.
 
 Serwer przyjmuje `--mode=` i `--map=` z identyfikatorami z tabel powyżej, także w `serwer.bat`.
 Puste `--map=` oznacza domyślną mapę trybu. `--limit=` skraca mecz: to tickety, eliminacje albo
-wygrane rundy, zależnie od trybu. `--bots=` to liczebność strony, a w Deathmatchu wszystkich.
+wygrane rundy, zależnie od trybu. `--name=` to nazwa na liście serwerów. Domyślnie serwer nie ma
+botów. `--bots=` je włącza: to liczebność strony, a w Deathmatchu wszystkich.
+Pusty serwer czeka: mecz stoi, a po wyjściu ostatniego gracza zaczyna się od nowa.
 Tryby z limitem miejsc odrzucają kolejnych graczy komunikatem o pełnym serwerze.
 Jeśli `/etc/miecz-dawida.env` pochodzi ze starszej wersji, dopisz do niego `MODE=` i `MAP=`.
 
@@ -301,4 +308,7 @@ godot --headless -- --test=ordnance-net --ordnance-role=server  testowy serwer A
 godot --headless -- --test=ordnance-net --ordnance-role=client  testowy klient AT, uruchom po serwerze
 godot -- --test=modes-shots --only=nowe --out=KATALOG  zrzuty dwóch map sci-fi
 python tools/test_arenas_network.py              lokalny serwer i klient obu nowych map
+godot --headless -- --test=respawn                odrodzenie z menu, także w pojazdach
+godot --headless -- --test=browser-net --port=17870  lista, drużyna, ping i odrodzenie; najpierw uruchom --server --port=17870 --mode=podboj --map=stare_miasto --name=Testowy
+godot -- --test=browser-shots --windowed --port=17870 --out=KATALOG  zrzuty listy, wyboru drużyny, tabeli i menu
 ```

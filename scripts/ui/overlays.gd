@@ -46,21 +46,26 @@ static func ranking(world: World) -> Control:
 
 
 static func _add_rows(box: VBoxContainer, world: World, list: Array) -> void:
-	box.add_child(_row("ŻOŁNIERZ", "ELIM.", "ŚMIERCI", "PUNKTY", UiKit.FAINT, 19, false))
+	box.add_child(_row("ŻOŁNIERZ", "ELIM.", "ŚMIERCI", "PUNKTY", "PING", UiKit.FAINT, 19, false))
 	box.add_child(UiKit.rule())
 	for s: Soldier in list:
 		var me: bool = s == world.local
 		var nice := "%s  ·  bot" % s.pname if s.peer == 0 else "[%d]  %s" % [s.level, s.pname]
-		box.add_child(_row(nice, str(s.kills), str(s.deaths), str(s.score), UiKit.BRASS if me else (UiKit.INK if s.alive else UiKit.MUTED), 22, me))
+		var ping := str(s.ping) if s.ping >= 0 else "–"
+		box.add_child(_row(nice, str(s.kills), str(s.deaths), str(s.score), ping, UiKit.BRASS if me else (UiKit.INK if s.alive else UiKit.MUTED), 22, me))
 
 
-static func _row(a: String, b: String, c: String, d: String, color: Color, size: int, highlight: bool) -> Control:
+## The ping column only appears in a game over the network.
+static func _row(a: String, b: String, c: String, d: String, e: String, color: Color, size: int, highlight: bool) -> Control:
 	var row := HBoxContainer.new()
 	var name_label := UiKit.label(a, size, color, "semibold" if highlight else "medium")
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.clip_text = true
 	row.add_child(name_label)
-	for pair: Array in [[b, 70.0], [c, 80.0], [d, 90.0]]:
+	var columns: Array = [[b, 70.0], [c, 80.0], [d, 90.0]]
+	if Net.is_networked():
+		columns.append([e, 80.0])
+	for pair: Array in columns:
 		var l := UiKit.label(pair[0], size, color, "semibold" if highlight else "medium")
 		l.custom_minimum_size = Vector2(pair[1], 0)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT

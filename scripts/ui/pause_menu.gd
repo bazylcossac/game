@@ -5,6 +5,7 @@ extends Control
 var world: World
 var _main: Control
 var _settings: Control
+var _respawn_button: Button
 var _built := false
 var _mouse_before := Input.MOUSE_MODE_VISIBLE
 
@@ -41,11 +42,13 @@ func _build() -> void:
 	stack.add_child(box)
 	box.add_child(UiKit.label("PAUZA" if Net.mode == Net.Mode.OFFLINE else "MENU", 46, UiKit.INK, "title"))
 	box.add_child(UiKit.accent_bar())
-	for pair: Array in [["WRÓĆ DO WALKI", close], ["USTAWIENIA", _show_settings], ["WYJDŹ DO MENU GŁÓWNEGO", _leave]]:
+	for pair: Array in [["WRÓĆ DO WALKI", close], ["ODRÓDŹ SIĘ", _respawn], ["USTAWIENIA", _show_settings], ["WYJDŹ DO MENU GŁÓWNEGO", _leave]]:
 		var b := UiKit.button(pair[0], pair[0] == "WRÓĆ DO WALKI")
 		b.custom_minimum_size = Vector2(0, 54)
 		b.pressed.connect(pair[1])
 		box.add_child(b)
+		if pair[0] == "ODRÓDŹ SIĘ":
+			_respawn_button = b
 
 	var s := SettingsPanel.new()
 	s.closed.connect(_hide_settings)
@@ -66,6 +69,8 @@ func open() -> void:
 		_build()
 	visible = true
 	_hide_settings()
+	# Only someone in the fight has a life to give up.
+	_respawn_button.visible = world.local != null and world.local.alive
 	_mouse_before = Input.mouse_mode
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if Net.mode == Net.Mode.OFFLINE:
@@ -90,6 +95,12 @@ func _hide_settings() -> void:
 	if _built:
 		_main.visible = true
 		_settings.visible = false
+
+
+## The death itself leads to the deploy screen, where the class can be changed.
+func _respawn() -> void:
+	close()
+	Net.send_respawn()
 
 
 func _leave() -> void:

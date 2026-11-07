@@ -17,6 +17,9 @@ extends Node
 ##   droid-gallery windowed: every Empire machine and gun in a studio, see droid_gallery.gd.
 ##   menu-art windowed: stages the menu card pictures, see menu_art.gd and tools/menu_art.py.
 ##   lang: Polish and English text, format codes and screens, see lang_test.gd.
+##   browser-net headless client against a real --server: the list, sides, ping, respawn, see browser_network.gd.
+##   respawn headless: the pause menu's respawn in vehicles and modes, see respawn_test.gd.
+##   browser-shots windowed: the server list, side pick, score table and pause menu, see browser_shots.gd.
 ##   neon: whether tanks and mechs fit every street of Neonowa Dzielnica, see neon_test.gd.
 ##   grenades headless: the reload rule, class counts, smoke and fire, see grenade_test.gd.
 ##   grenade-shots windowed: the throw, frame by frame, and each kind going off.
@@ -79,6 +82,7 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(out_dir)
 	# Whatever the player last chose in the menu must not change what a test plays.
 	Settings.side = C.Team.RESISTANCE
+	ServerBrowser.asking = false
 	Settings.match_mode = Modes.DEFAULT_MODE
 	Settings.match_map = ""
 	match Settings.arg("test"):
@@ -122,6 +126,9 @@ func _ready() -> void:
 		"neon": add_child(load("res://scripts/dev/neon_test.gd").new())
 		"droid-gallery": add_child(load("res://scripts/dev/droid_gallery.gd").new())
 		"lang": add_child(load("res://scripts/dev/lang_test.gd").new())
+		"browser-net": add_child(load("res://scripts/dev/browser_network.gd").new())
+		"respawn": add_child(load("res://scripts/dev/respawn_test.gd").new())
+		"browser-shots": add_child(load("res://scripts/dev/browser_shots.gd").new())
 		"scratch": add_child(load(Settings.arg("file")).new())
 		_: get_tree().quit(2)
 

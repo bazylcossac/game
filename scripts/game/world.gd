@@ -409,6 +409,13 @@ func on_joined(sid: int) -> void:
 		controller.attach(local)
 
 
+func on_pings(list: Array) -> void:
+	for e: Array in list:
+		var s: Soldier = soldiers.get(e[0])
+		if s:
+			s.ping = e[1]
+
+
 func on_profile(new_level: int, new_xp: int) -> void:
 	level = new_level
 	xp = new_xp

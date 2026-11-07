@@ -40,6 +40,8 @@ func _ready() -> void:
 
 func add_kill(k: Soldier, v: Soldier, weapon_id: int, head: bool) -> void:
 	var tag := T.t("OGIEŃ" if weapon_id == C.WEAPON_FIRE else ("GRANAT" if weapon_id < 0 else String(C.WEAPONS[weapon_id]["short"])))
+	if weapon_id == C.WEAPON_RESPAWN:
+		tag = T.t("ODRODZENIE")
 	_feed.push_front({"k": k.pname if k else "", "kc": world.side_color(k) if k else UiKit.INK, "v": v.pname, "vc": world.side_color(v),
 		"w": tag, "head": head, "t": 6.0,
 		"mine": world.local != null and (k == world.local or v == world.local)})
@@ -605,6 +607,10 @@ func _draw_death_card() -> void:
 	var a := clampf(death_t * 2.0, 0.0, 1.0)
 	draw_rect(Rect2(cx - w * 0.5, y, w, 104), Color(0.03, 0.035, 0.05, 0.8 * a))
 	draw_rect(Rect2(cx - w * 0.5, y, 4, 104), Color(1.0, 0.28, 0.2, a))
+	if killed_with == C.WEAPON_RESPAWN:
+		_text(_f_semi, Vector2(cx - w * 0.5, y + 30), "ODRODZENIE", 22, Color(1, 1, 1, 0.7 * a), HORIZONTAL_ALIGNMENT_CENTER, w)
+		_text(_f_title, Vector2(cx - w * 0.5, y + 74), "ZARAZ WYBIERZESZ KLASĘ", 36, Color(UiKit.BRASS, a), HORIZONTAL_ALIGNMENT_CENTER, w)
+		return
 	_text(_f_semi, Vector2(cx - w * 0.5, y + 30), "ZOSTAŁEŚ WYELIMINOWANY", 22, Color(1, 1, 1, 0.7 * a), HORIZONTAL_ALIGNMENT_CENTER, w)
 	var who := "Wybuch" if killed_by == null or not is_instance_valid(killed_by) else killed_by.pname
 	var col := UiKit.RED if killed_by != null and is_instance_valid(killed_by) and world.are_foes(killed_by, world.local) else UiKit.INK

@@ -6,7 +6,7 @@ signal play_offline(cfg: Dictionary)
 signal host_game(cfg: Dictionary, port: int)
 signal join_game(address: String, port: int)
 
-const FULL_PAGES := ["battle", "host"]
+const FULL_PAGES := ["battle", "host", "team"]
 const SIDE_ART := ["side_usa", "side_imperium"]
 const SIDE_ICONS := ["res://assets/textures/icon_usa.png", "res://assets/textures/icon_empire.png"]
 const SIDE_NOTES := ["Ludzie przeciw maszynom. Armia USA, laser i miecz.", "Armia maszyn. Stal, droidy i ogień zaporowy."]
@@ -22,6 +22,9 @@ var _option_boxes: Array[VBoxContainer] = []
 var _summaries: Array[Label] = []
 var _side_rows: Array[HBoxContainer] = []
 var _host_port := C.DEFAULT_PORT
+var _browser: ServerBrowser
+var _team_note: Label
+var _team_row: HBoxContainer
 
 
 func _ready() -> void:
@@ -61,6 +64,7 @@ func _ready() -> void:
 	_pages["battle"] = _setup_page("SZYBKA BITWA", "ROZPOCZNIJ", _start_battle, "main")
 	_pages["multi"] = _page_multi()
 	_pages["host"] = _setup_page("ZAŁÓŻ SERWER", "URUCHOM SERWER", _start_server, "multi")
+	_pages["team"] = _page_team()
 	_pages["settings"] = _page_settings()
 	_pages["credits"] = _page_credits()
 	for key: String in _pages:
@@ -97,6 +101,34 @@ func _ready() -> void:
 
 func set_status(text: String) -> void:
 	_status.text = T.t(text)
+
+
+## The server let the player in: the match is waiting for them to pick a side.
+func show_side_pick(cfg: Dictionary, counts: Array) -> void:
+	var full := Modes.normalize(cfg)
+	_team_note.text = "%s  ·  %s" % [T.t(Modes.mode_of(full)["name"]), T.t(Modes.MAPS[full["map"]]["name"])]
+	for c in _team_row.get_children():
+		_team_row.remove_child(c)
+		c.queue_free()
+	for team in C.TEAM_NAMES.size():
+		var note := "%s\n%s" % [T.t(SIDE_NOTES[team]), T.t("Graczy w drużynie: %d") % int(counts[team])]
+		var card := UiCard.new().setup(_art(SIDE_ART[team]), T.t(C.TEAM_NAMES[team]).to_upper(), note, C.TEAM_COLORS[team], load(SIDE_ICONS[team]))
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.pressed.connect(_choose_team.bind(team))
+		_team_row.add_child(card)
+	set_status("")
+	_show("team")
+
+
+## Back to the server list when the connection ends before a side was picked.
+func close_side_pick() -> void:
+	if (_pages["team"] as Control).visible:
+		_show("multi")
+
+
+func _choose_team(team: int) -> void:
+	set_status("Wczytywanie mapy...")
+	Net.choose_side(team)
 
 
 func _show(page: String) -> void:
@@ -373,15 +405,41 @@ func _cfg() -> Dictionary:
 	return Modes.normalize({"seed": Modes.DEFAULT_SEED, "bots_per_team": bots, "difficulty": Settings.difficulty, "mode": Settings.match_mode, "map": Settings.match_map})
 
 
+func _page_team() -> Control:
+	var page := VBoxContainer.new()
+	page.add_theme_constant_override("separation", 12)
+	page.add_child(UiKit.label("WYBIERZ DRUŻYNĘ", 56, UiKit.INK, "title"))
+	_team_note = UiKit.label("", 28, UiKit.BRASS, "semibold")
+	page.add_child(_team_note)
+	_team_row = HBoxContainer.new()
+	_team_row.add_theme_constant_override("separation", 14)
+	_team_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.add_child(_team_row)
+	var back := _menu_button("WSTECZ")
+	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back.pressed.connect(func() -> void:
+		Net.leave()
+		_show("multi"))
+	page.add_child(back)
+	return page
+
+
+func _join(address: String, port: int) -> void:
+	Settings.save_settings()
+	join_game.emit(address, port)
+
+
 func _page_multi() -> Control:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 14)
-	box.custom_minimum_size = Vector2(980, 0)
+	box.custom_minimum_size = Vector2(1180, 0)
 	box.add_child(UiKit.label("GRA SIECIOWA", 42, UiKit.INK, "title"))
 	box.add_child(UiKit.accent_bar())
-	box.add_child(UiKit.wrapped("Wybierasz stronę, a boty uzupełniają drużyny. Tryb i mapę wybiera ten, kto zakłada serwer.", 24, UiKit.MUTED))
-	box.add_child(_caption("WYBIERZ STRONĘ"))
-	box.add_child(_side_cards(230))
+	box.add_child(_caption("SERWERY"))
+	_browser = ServerBrowser.new()
+	_browser.join_requested.connect(_join)
+	box.add_child(_browser)
+	box.add_child(UiKit.wrapped("Drużynę wybierasz po dołączeniu do serwera.", 24, UiKit.MUTED))
 
 	var fields := HBoxContainer.new()
 	fields.add_theme_constant_override("separation", 12)
@@ -398,7 +456,7 @@ func _page_multi() -> Control:
 	var where := VBoxContainer.new()
 	where.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	where.size_flags_stretch_ratio = 1.6
-	where.add_child(UiKit.label("Adres serwera", 22, UiKit.MUTED))
+	where.add_child(UiKit.label("Inny serwer: adres i port", 22, UiKit.MUTED))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	var addr := LineEdit.new()
@@ -414,12 +472,15 @@ func _page_multi() -> Control:
 
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
-	var join := _menu_button("DOŁĄCZ", true)
+	var refresh := _menu_button("ODŚWIEŻ", true)
+	refresh.custom_minimum_size = Vector2(240, 64)
+	refresh.pressed.connect(_browser.refresh)
+	buttons.add_child(refresh)
+	var join := _menu_button("DOŁĄCZ PO ADRESIE")
 	join.custom_minimum_size = Vector2(340, 64)
 	join.pressed.connect(func() -> void:
 		Settings.last_server = addr.text.strip_edges()
-		Settings.save_settings()
-		join_game.emit(Settings.last_server, int(port.text)))
+		_join(Settings.last_server, int(port.text)))
 	buttons.add_child(join)
 	var host := _menu_button("ZAŁÓŻ SERWER")
 	host.custom_minimum_size = Vector2(340, 64)

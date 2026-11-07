@@ -4,9 +4,15 @@ extends RefCounted
 
 const GAME_TITLE := "MIECZ DAWIDA"
 const GAME_SUBTITLE := "LASEROWY FRONT"
-const VERSION := "0.10.0"
+const VERSION := "0.11.0"
 const DEFAULT_PORT := 7777
 const MAX_PLAYERS := 16
+## Spare connections, so a full server can still answer the server lists asking about it.
+const QUERY_SLOTS := 8
+## What the server list shows. A server's own --name replaces "name" once it answers.
+const SERVERS := [
+	{"name": "Serwer główny", "address": "5.253.232.117", "port": DEFAULT_PORT},
+]
 
 enum Team { RESISTANCE = 0, EMPIRE = 1 }
 const NEUTRAL := -1
@@ -478,6 +484,8 @@ const BLEED_MAJORITY := 6.0
 const BLEED_DOMINANT := 2.5
 
 const WEAPON_FIRE := -3
+## Not a weapon: the player gave up this life from the pause menu.
+const WEAPON_RESPAWN := -4
 
 # Score
 const SCORE_KILL := 100

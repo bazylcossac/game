@@ -87,6 +87,12 @@ func _screens() -> void:
 		_walk(menu)
 	await _cards(menu)
 	Settings.match_mode = Modes.DEFAULT_MODE
+	menu.call("_show", "multi")
+	await get_tree().process_frame
+	_walk(menu)
+	menu.call("show_side_pick", {"mode": "podboj", "map": "rynek"}, [1, 2])
+	await get_tree().process_frame
+	_walk(menu)
 	menu.queue_free()
 	main.set("_menu", null)
 	await get_tree().process_frame
@@ -99,6 +105,10 @@ func _screens() -> void:
 		w.hud.deploy.call("_show_tab", tab)
 		await get_tree().process_frame
 		_walk(w.hud)
+	w.hud.pause_menu.open()
+	await get_tree().process_frame
+	_walk(w.hud)
+	w.hud.pause_menu.close()
 	main.call("_close_world")
 	await get_tree().process_frame
 	Net.leave()

@@ -9,13 +9,13 @@ const FLAG_TICK := 0.1
 const MAX_REWIND := 0.3
 const MAX_CLIENT_SPEED := 17.0
 const ROUND_RESTART_DELAY := 22.0
+const PING_RATE := 2.0
 
 var world: World
 var rules: ModeRules
 var rng := RandomNumberGenerator.new()
 var pending_names := {}
 var pending_tokens := {}
-var pending_sides := {}
 var progress := ProgressStore.new()
 var bots: Array[BotBrain] = []
 var round_over := false
@@ -25,6 +25,7 @@ var _snap_t := 0.0
 var _flag_t := 0.0
 var _roster_t := 0.0
 var _roster_dirty := false
+var _ping_t := 0.0
 var _restart_t := 0.0
 var _regen_t := 0.0
 var _grenade_id := 1
@@ -89,6 +90,7 @@ func add_human(peer: int, player_name: String, token: String, side := 0) -> void
 
 func remove_human(peer: int) -> void:
 	pending_names.erase(peer)
+	pending_tokens.erase(peer)
 	var s := world.soldier_for_peer(peer)
 	if s == null:
 		return
@@ -100,19 +102,39 @@ func remove_human(peer: int) -> void:
 	world.remove_soldier(s.sid)
 	_balance_bots()
 	_send_roster()
+	# Whoever comes to an empty server starts a fresh match, not the end of the last one.
+	if _idle() and not round_over:
+		_start_new_round()
 
 
 ## True when a new player would not fit: the small modes have a fixed number of places.
 func is_full() -> bool:
-	var humans := 0
+	var counts := team_counts()
+	return int(counts[0]) + int(counts[1]) >= player_limit()
+
+
+func player_limit() -> int:
+	return mini(int(world.mode["team_max"]), C.MAX_PLAYERS)
+
+
+## Players on each side, bots left out.
+func team_counts() -> Array:
+	var counts := [0, 0]
 	for s: Soldier in world.soldiers.values():
 		if s.peer != 0:
-			humans += 1
-	return humans >= int(world.mode["team_max"])
+			counts[s.team] += 1
+	return counts
+
+
+## A players-only server with nobody on it: there is no match to run until someone comes.
+func _idle() -> bool:
+	return world.cfg.get("no_bots", false) and world.soldiers.is_empty()
 
 
 ## Bots fill both sides up to the target, or up to the larger side's number of players.
 func _balance_bots() -> void:
+	if world.cfg.get("no_bots", false):
+		return
 	var target: int = world.cfg.get("bots_per_team", 12)
 	if world.ffa:
 		_balance_free_for_all(target)
@@ -191,6 +213,8 @@ func _physics_process(delta: float) -> void:
 		if _restart_t <= 0.0:
 			_start_new_round()
 		return
+	if _idle():
+		return
 	for brain in bots:
 		var u0 := Time.get_ticks_usec()
 		brain.tick(delta)
@@ -218,6 +242,20 @@ func _physics_process(delta: float) -> void:
 		_roster_t = 0.0
 		if _roster_dirty:
 			_send_roster()
+	_ping_t += delta
+	if _ping_t >= PING_RATE:
+		_ping_t = 0.0
+		if Net.is_networked():
+			_send_pings()
+
+
+## Only the server can measure every player, so it hands the numbers out for the score table.
+func _send_pings() -> void:
+	var list := []
+	for s: Soldier in world.soldiers.values():
+		if s.peer != 0:
+			list.append([s.sid, Net.ping_of(s.peer)])
+	Net.broadcast(&"pings", [list])
 
 
 func _tick_regen(delta: float) -> void:
@@ -655,6 +693,22 @@ func sv_deploy(peer: int, class_id: int, flag_idx: int, kit: Dictionary) -> void
 	if flag_idx == C.SPAWN_BEACON and world.squads.spawn_problem(s) != "":
 		flag_idx = -1
 	spawn(s, class_id, flag_idx, Gear.sanitize(class_id, kit, s.level, s.team))
+
+
+## The pause menu's respawn. It costs what a death costs, and nobody is credited with a kill.
+func sv_respawn(peer: int) -> void:
+	var s := world.soldier_for_peer(peer)
+	if s == null or not s.alive or not can_act():
+		return
+	# Out of the vehicle first: the player's own choice must not wreck it under the crew.
+	if s.riding >= 0:
+		dismount(s)
+	elif s.vehicle_id >= 0 and rules.can_leave_vehicle():
+		exit_vehicle(s)
+		if s.vehicle_id >= 0:
+			Net.send_to_owner(s, &"notice", ["NIE MA GDZIE WYSIĄŚĆ Z POJAZDU"])
+			return
+	apply_damage(s, 99999.0, null, C.WEAPON_RESPAWN, false, s.global_position, true)
 
 
 func sv_squad(peer: int, action: int, id: int) -> void:

@@ -26,6 +26,8 @@ var class_id := 0
 var pname := ""
 var token := ""
 var level := 1
+## Round trip to the server in ms, as the server last measured it. -1 until it has.
+var ping := -1
 ## Weapons, attachments and perks chosen for this life. Empty for bots.
 var kit := {}
 var slot_stats: Array[Dictionary] = []
