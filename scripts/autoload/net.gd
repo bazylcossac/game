@@ -347,6 +347,20 @@ func c_deploy(class_id: int, spawn_flag: int, kit: Dictionary) -> void:
 		_server().sv_deploy(_sender(), class_id, spawn_flag, kit)
 
 
+## An order from the admin panel. `arg` is only used by some, such as a teleport target.
+func send_admin(cmd: String, arg: Variant = null) -> void:
+	if is_server():
+		_server().sv_admin(multiplayer.get_unique_id(), cmd, arg)
+	else:
+		c_admin.rpc_id(1, cmd, arg)
+
+
+@rpc("any_peer", "call_remote", "reliable", 1)
+func c_admin(cmd: String, arg: Variant) -> void:
+	if is_server() and _server():
+		_server().sv_admin(_sender(), cmd, arg)
+
+
 ## Gives up this life, so the player can deploy again with another class.
 func send_respawn() -> void:
 	if is_server():

@@ -26,6 +26,8 @@ var _flag_t := 0.0
 var _roster_t := 0.0
 var _roster_dirty := false
 var _ping_t := 0.0
+## sid -> {"at": when it happens, "from": where the soldier stood} for getting in or out.
+var _using := {}
 var _restart_t := 0.0
 var _regen_t := 0.0
 var _grenade_id := 1
@@ -216,6 +218,8 @@ func _physics_process(delta: float) -> void:
 	if _idle():
 		return
 	for brain in bots:
+		if world.bots_frozen:
+			break
 		var u0 := Time.get_ticks_usec()
 		brain.tick(delta)
 		if Time.get_ticks_usec() - u0 > 4000:
@@ -230,6 +234,7 @@ func _physics_process(delta: float) -> void:
 			_tick_coins(_flag_t)
 		_tick_supers()
 		_tick_vehicles()
+		_tick_use()
 		_flag_t = 0.0
 	rules.tick(delta)
 	_snap_t += delta
@@ -380,6 +385,15 @@ func _vehicle_class(v: Dictionary) -> int:
 	return C.APC_CLASS if v.get("kind", 0) == 1 else C.VEHICLE_CLASS
 
 
+func _seat_key(s: Soldier) -> String:
+	return "ammo_gunner" if s.is_gunner() else "ammo_driver"
+
+
+func _clear_ammo(v: Dictionary) -> void:
+	v.erase("ammo_driver")
+	v.erase("ammo_gunner")
+
+
 func _reset_vehicles(announce: bool) -> void:
 	if not world.mode.get("vehicles", false):
 		return
@@ -394,6 +408,7 @@ func _reset_vehicles(announce: bool) -> void:
 			var hp := 0.0 if tanks_only else float(C.cls(team, C.VEHICLE_CLASS)["hp"])
 			world.on_vehicle(id, team, pos, spot[1], hp, 0)
 			var v: Dictionary = world.vehicles[id]
+			_clear_ammo(v)
 			v["home"] = [pos, spot[1]]
 			v["free_since"] = Net.server_time()
 			v["respawn_at"] = INF if tanks_only else 0.0
@@ -408,6 +423,7 @@ func _reset_vehicles(announce: bool) -> void:
 			pos.y = world.map.ground_height(pos.x, pos.z)
 			world.on_vehicle(id, team, pos, spot[1], float(C.cls(team, C.APC_CLASS)["hp"]), 0, 0, 1)
 			var v: Dictionary = world.vehicles[id]
+			_clear_ammo(v)
 			v["home"] = [pos, spot[1]]
 			v["free_since"] = Net.server_time()
 			v["respawn_at"] = 0.0
@@ -425,6 +441,7 @@ func _tick_vehicles() -> void:
 			v["hp"] = float(C.cls(v["team"], _vehicle_class(v))["hp"])
 			v["driver"] = 0
 			v["free_since"] = now
+			_clear_ammo(v)
 			_push_vehicle(id)
 
 
@@ -443,8 +460,43 @@ func free_vehicle_near(s: Soldier, reach: float) -> int:
 	return best
 
 
+## E starts getting in or out, which takes C.USE_TIME. A second E calls it off.
 func sv_use(peer: int) -> void:
 	var s := world.soldier_for_peer(peer)
+	if s == null or not s.alive or not can_act():
+		return
+	if _using.has(s.sid):
+		_using.erase(s.sid)
+		Net.send_to_owner(s, &"use_wait", [0.0])
+		return
+	var possible := s.riding >= 0 or (s.vehicle_id >= 0 and rules.can_leave_vehicle()) or (s.vehicle_id < 0 and free_vehicle_near(s, C.TANK_ENTER_RANGE) >= 0)
+	if not possible:
+		return
+	_using[s.sid] = {"at": Net.server_time() + C.USE_TIME, "from": s.global_position}
+	Net.send_to_owner(s, &"use_wait", [C.USE_TIME])
+
+
+func _tick_use() -> void:
+	var now := Net.server_time()
+	for sid: int in _using.keys():
+		var s: Soldier = world.soldiers.get(sid)
+		var job: Dictionary = _using[sid]
+		if s == null or not s.alive or not can_act():
+			_using.erase(sid)
+			continue
+		# Walking off on foot calls it off; a moving vehicle carries its crew along anyway.
+		if s.vehicle_id < 0 and s.riding < 0 and s.global_position.distance_to(job["from"]) > 2.0:
+			_using.erase(sid)
+			Net.send_to_owner(s, &"use_wait", [0.0])
+			continue
+		if now >= float(job["at"]):
+			_using.erase(sid)
+			Net.send_to_owner(s, &"use_wait", [0.0])
+			use_now(s)
+
+
+## Gets in or out on the spot. Bots and tests come here directly.
+func use_now(s: Soldier) -> void:
 	if s == null or not s.alive or not can_act():
 		return
 	if s.riding >= 0:
@@ -481,10 +533,11 @@ func enter_vehicle(s: Soldier, id: int) -> bool:
 		v["yaw"] = driver.hull_yaw
 		v["hp"] = driver.hp
 	v["driver" if seat == 0 else "gunner"] = s.sid
+	_using.erase(s.sid)
 	Net.broadcast(&"crew", [s.sid, id, seat])
 	_push_vehicle(id)
 	Net.broadcast(&"place", [s.sid, v["pos"], v["yaw"]])
-	Net.broadcast(&"transform", [s.sid, _vehicle_class(v), 0.0, v["hp"]])
+	Net.broadcast(&"transform", [s.sid, _vehicle_class(v), 0.0, v["hp"], v.get("ammo_gunner" if seat == 1 else "ammo_driver", {})])
 	return true
 
 
@@ -512,6 +565,7 @@ func switch_seat(s: Soldier) -> bool:
 	var target := "driver" if s.is_gunner() else "gunner"
 	if v.get(target, 0) != 0:
 		return false
+	v[_seat_key(s)] = s.ammo_state()
 	v["pos"] = s.global_position
 	v["yaw"] = s.hull_yaw
 	v["hp"] = s.hp
@@ -519,7 +573,7 @@ func switch_seat(s: Soldier) -> bool:
 	v[target] = s.sid
 	Net.broadcast(&"crew", [s.sid, s.vehicle_id, 0 if target == "driver" else 1])
 	_push_vehicle(s.vehicle_id)
-	Net.broadcast(&"transform", [s.sid, _vehicle_class(v), 0.0, v["hp"]])
+	Net.broadcast(&"transform", [s.sid, _vehicle_class(v), 0.0, v["hp"], v.get("ammo_" + target, {})])
 	return true
 
 
@@ -543,6 +597,7 @@ func crew_tank(s: Soldier) -> void:
 			v["pos"] = s.global_position
 			v["yaw"] = s.yaw
 			v["hp"] = float(C.cls(s.team, C.VEHICLE_CLASS)["hp"])
+			_clear_ammo(v)
 			enter_vehicle(s, id)
 			return
 
@@ -558,6 +613,7 @@ func exit_vehicle(s: Soldier, disconnecting := false) -> void:
 			return
 		# The soldier is removed right after parking, so no infantry is placed here.
 		spot = s.global_position
+	v[_seat_key(s)] = s.ammo_state()
 	s.vehicle_id = -1
 	v["pos"] = s.global_position
 	v["yaw"] = s.hull_yaw
@@ -611,6 +667,7 @@ func _vehicle_destroyed(s: Soldier) -> Array[Soldier]:
 	v["driver"] = 0
 	v["gunner"] = 0
 	v["respawn_at"] = Net.server_time() + rules.tank_respawn_delay()
+	_clear_ammo(v)
 	Net.broadcast(&"vehicle", [v["id"], v["team"], v["pos"], v["yaw"], 0.0, 0, 0])
 	return crew
 
@@ -644,6 +701,7 @@ func _start_new_round() -> void:
 	world.forts.reset()
 	world.squads.reset()
 	world.areas.reset()
+	_using.clear()
 	for s: Soldier in world.soldiers.values():
 		s.kills = 0
 		s.deaths = 0
@@ -711,6 +769,133 @@ func sv_respawn(peer: int) -> void:
 	apply_damage(s, 99999.0, null, C.WEAPON_RESPAWN, false, s.global_position, true)
 
 
+# ---------------------------------------------------------------- admin panel
+
+## Test orders from the F1 panel. Anyone may send them for now; each one is logged.
+func sv_admin(peer: int, cmd: String, arg: Variant) -> void:
+	var s := world.soldier_for_peer(peer)
+	if s == null:
+		return
+	print("[admin] %s: %s" % [s.pname, cmd])
+	match cmd:
+		"god":
+			s.god = not s.god
+			_send_admin_state(s)
+		"noclip":
+			s.noclip = not s.noclip and s.alive and not s.is_vehicle() and s.riding < 0
+			_send_admin_state(s)
+		"ammo":
+			s.inf_ammo = not s.inf_ammo
+			_send_admin_state(s)
+		"heal":
+			if s.alive:
+				Net.broadcast(&"refill", [s.sid])
+		"tp":
+			if s.alive and arg is Vector3 and (arg as Vector3).is_finite() and s.vehicle_id < 0 and s.riding < 0:
+				Net.broadcast(&"place", [s.sid, arg, s.yaw])
+		"coin":
+			if s.alive and s.coins == 0 and not s.is_super():
+				spawn_coin(s.global_position, C.COIN_LIFETIME)
+		"bots_more", "bots_less":
+			var target := int(world.cfg.get("bots_per_team", 0)) + (2 if cmd == "bots_more" else -2)
+			world.cfg["bots_per_team"] = clampi(target, 0, int(world.mode["team_max"]))
+			world.cfg["no_bots"] = world.cfg["bots_per_team"] == 0
+			if world.cfg["no_bots"]:
+				_remove_bots(false)
+			_balance_bots()
+			_send_roster()
+			Net.send_to_owner(s, &"notice", [T.pack("BOTÓW NA STRONĘ: %d", [world.cfg["bots_per_team"]])])
+		"bots_clear":
+			world.cfg["bots_per_team"] = 0
+			world.cfg["no_bots"] = true
+			_remove_bots(true)
+			_send_roster()
+		"kill_bots":
+			for o: Soldier in world.soldiers.values():
+				if o.peer == 0 and o.alive:
+					apply_damage(o, 99999.0, null, C.WEAPON_ADMIN, false, o.global_position, true)
+		"freeze":
+			world.bots_frozen = not world.bots_frozen
+			for brain in bots:
+				brain.s.wish = Vector3.ZERO
+				brain.s.want_sprint = false
+				brain.s.drive = Vector2.ZERO
+			Net.broadcast(&"admin_world", [world.bots_frozen])
+		"dummy":
+			if s.alive:
+				_add_dummy(s)
+		"tank", "apc":
+			if s.alive and world.mode.get("vehicles", false):
+				_admin_vehicle(s, 1 if cmd == "apc" else 0)
+		"fix_vehicles":
+			for id: int in world.vehicles:
+				var v: Dictionary = world.vehicles[id]
+				if float(v["hp"]) <= 0.0:
+					v["respawn_at"] = 0.0
+				elif _is_parked(v):
+					v["hp"] = float(C.cls(v["team"], _vehicle_class(v))["hp"])
+					_push_vehicle(id)
+		"flags":
+			for i in world.flags.size():
+				var f: Dictionary = world.flags[i]
+				var before: int = f["owner"]
+				f["owner"] = s.team
+				f["value"] = -1.0 if s.team == C.Team.RESISTANCE else 1.0
+				if before != s.team:
+					Net.broadcast(&"flag_changed", [i, s.team, before])
+		"win":
+			if not round_over:
+				end_match(s.sid if world.ffa else s.team)
+		"round":
+			_start_new_round()
+
+
+func _send_admin_state(s: Soldier) -> void:
+	Net.broadcast(&"admin_state", [s.sid, s.god, s.noclip, s.inf_ammo])
+
+
+## Every bot goes; with `dummies` the standing targets go too.
+func _remove_bots(dummies: bool) -> void:
+	for brain in bots:
+		rules.on_removed(brain.s)
+		world.remove_soldier(brain.s.sid)
+	bots.clear()
+	if dummies:
+		for o: Soldier in world.soldiers.values():
+			if o.peer == 0:
+				rules.on_removed(o)
+				world.remove_soldier(o.sid)
+
+
+## An enemy that stands still and never fights back: something to shoot at.
+func _add_dummy(s: Soldier) -> void:
+	var team := C.Team.EMPIRE if s.team == C.Team.RESISTANCE else C.Team.RESISTANCE
+	var sid := _alloc_sid()
+	var dummy := world.add_soldier(sid, 0, team, T.t("Manekin %d") % sid)
+	var ahead := Vector3(-sin(s.yaw), 0.0, -cos(s.yaw))
+	var pos := world.map.spawn_point_near(s.global_position + ahead * 7.0, 1.0, rng)
+	pos.y = maxf(pos.y, world.map.ground_height(pos.x, pos.z) + 0.1)
+	Net.broadcast(&"spawn", [sid, pos, s.yaw + PI, 0, {}])
+	dummy.protected_t = 0.0
+	_send_roster()
+
+
+func _admin_vehicle(s: Soldier, kind: int) -> void:
+	var id := 1
+	for key: int in world.vehicles:
+		id = maxi(id, key + 1)
+	var ahead := Vector3(-sin(s.yaw), 0.0, -cos(s.yaw))
+	var nav := world.map.b.nav_tank
+	var pos: Vector3 = nav._center(nav.nearest_free(nav.cell_of(s.global_position + ahead * 10.0)))
+	pos.y = world.map.ground_height(pos.x, pos.z)
+	var hp := float(C.cls(s.team, C.APC_CLASS if kind == 1 else C.VEHICLE_CLASS)["hp"])
+	Net.broadcast(&"vehicle", [id, s.team, pos, s.yaw, hp, 0, 0, kind])
+	var v: Dictionary = world.vehicles[id]
+	v["home"] = [pos, s.yaw]
+	v["free_since"] = Net.server_time()
+	v["respawn_at"] = 0.0
+
+
 func sv_squad(peer: int, action: int, id: int) -> void:
 	var s := world.soldier_for_peer(peer)
 	if s == null:
@@ -753,7 +938,7 @@ func sv_state(peer: int, pos: Vector3, new_yaw: float, new_pitch: float, flags: 
 	var dt := clampf(now - s.last_state_time, 0.01, 0.5)
 	s.last_state_time = now
 	var moved := Vector2(pos.x - s.last_valid_pos.x, pos.z - s.last_valid_pos.z).length()
-	if moved > MAX_CLIENT_SPEED * dt + 1.5:
+	if moved > MAX_CLIENT_SPEED * dt + 1.5 and not s.noclip:
 		# Too fast to be legitimate: hold the soldier where it was and resync the client.
 		Net.send_to_owner(s, &"correct_position", [s.last_valid_pos])
 		return
@@ -834,7 +1019,8 @@ func sv_grenade(peer: int, origin: Vector3, dir: Vector3, kind: int) -> void:
 	if s.control == Soldier.Driver.PROXY_SERVER:
 		if s.nades[kind] <= 0 or s.grenade_cd > 0.0 or s.reload_t > C.RELOAD_THROW_SLACK or origin.distance_to(s.eye_position()) > 3.0:
 			return
-		s.nades[kind] -= 1
+		if not s.inf_ammo:
+			s.nades[kind] -= 1
 		s.grenade_cd = 1.0
 	throw_grenade(s, origin, dir.normalized(), kind)
 
@@ -953,10 +1139,16 @@ func resolve_shot(s: Soldier, origin: Vector3, dir: Vector3, time: float, from_o
 		end = wall["position"]
 		kind = 1
 	var hit := _trace_soldiers(origin, dir, max_d, s, time)
-	if hit.is_empty() and not wall.is_empty():
-		var fort_id := int(wall["collider"].get_meta("fort_id", 0))
-		if fort_id > 0:
-			world.forts.damage(fort_id, float(w["damage"]), s, float(w["damage"]) >= 50.0, false)
+	if hit.is_empty():
+		var hull := _parked_on_ray(origin, end)
+		if not hull.is_empty():
+			end = hull["position"]
+			kind = 1
+			damage_parked(int(hull["id"]), float(w["damage"]) * float(w.get("vs_armor", C.ARMOR_DEFAULT)), s)
+		elif not wall.is_empty():
+			var fort_id := int(wall["collider"].get_meta("fort_id", 0))
+			if fort_id > 0:
+				world.forts.damage(fort_id, float(w["damage"]), s, float(w["damage"]) >= 50.0, false)
 	if not hit.is_empty():
 		var target: Soldier = hit["soldier"]
 		end = origin + dir * float(hit["dist"])
@@ -984,6 +1176,59 @@ func resolve_shot(s: Soldier, origin: Vector3, dir: Vector3, time: float, from_o
 		_blast(s, end, w["splash"], w["splash_damage"], hit.get("soldier"), -2, origin)
 
 
+## The first vehicle hull on the line, as {"id", "position"}, or empty.
+func _parked_on_ray(from: Vector3, to: Vector3) -> Dictionary:
+	var q := PhysicsRayQueryParameters3D.create(from, to, C.LAYER_VEHICLE)
+	var hit := world.get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty() or not hit["collider"].has_meta("vehicle_id"):
+		return {}
+	return {"id": hit["collider"].get_meta("vehicle_id"), "position": hit["position"]}
+
+
+func _is_parked(v: Dictionary) -> bool:
+	return int(v["driver"]) == 0 and int(v.get("gunner", 0)) == 0 and float(v["hp"]) > 0.0
+
+
+## A vehicle with nobody at the controls is still armour: enemies can wreck it where it stands.
+## Crewed vehicles take their damage through the driver instead, see apply_damage.
+func damage_parked(id: int, amount: float, attacker: Soldier) -> void:
+	var v: Dictionary = world.vehicles.get(id, {})
+	if v.is_empty() or not _is_parked(v) or amount <= 0.0 or not can_act():
+		return
+	if attacker != null and attacker.team == int(v["team"]) and not world.ffa:
+		return
+	if world.in_safe_zone(v["pos"], int(v["team"])):
+		return
+	v["hp"] = maxf(float(v["hp"]) - amount, 0.0)
+	if float(v["hp"]) > 0.0:
+		if attacker:
+			Net.send_to_owner(attacker, &"hit_confirm", [1])
+		return
+	v["respawn_at"] = Net.server_time() + rules.tank_respawn_delay()
+	_clear_ammo(v)
+	for sid: int in (v["riders"] as Array).duplicate():
+		var rider: Soldier = world.soldiers.get(sid)
+		Net.broadcast(&"ride", [sid, -1])
+		if rider and rider.alive:
+			apply_damage(rider, 99999.0, attacker, C.W.TANK_CANNON, false, v["pos"], true)
+	_push_vehicle(id)
+	Net.broadcast(&"vehicle_wrecked", [id])
+	if attacker:
+		Net.send_to_owner(attacker, &"hit_confirm", [3])
+		add_score(attacker, C.SCORE_ASSIST, "ZNISZCZONY POJAZD")
+
+
+## Splash on every empty vehicle around a blast, falling off with distance like it does on people.
+func _blast_parked(pos: Vector3, radius: float, damage: float, attacker: Soldier, skip_id := -1) -> void:
+	for id: int in world.vehicles:
+		var v: Dictionary = world.vehicles[id]
+		if id == skip_id or not _is_parked(v):
+			continue
+		var d := maxf((v["pos"] as Vector3).distance_to(pos) - 2.6, 0.0)
+		if d < radius:
+			damage_parked(id, damage * (1.0 - d / radius), attacker)
+
+
 ## Area damage from a tank shell. `skip` already took the direct hit.
 ## One artillery shell. Friends are safe, as from every other explosion in the game.
 func shell_blast(s: Soldier, pos: Vector3) -> void:
@@ -996,6 +1241,7 @@ func _blast(s: Soldier, pos: Vector3, radius: float, damage: float, skip: Varian
 	else:
 		Net.broadcast(&"explosion", [-1, pos])
 	_damage_forts(pos, radius, damage, s)
+	_blast_parked(pos, radius, damage * 0.5, s)
 	for t: Soldier in world.soldiers.values():
 		if not t.alive or not world.are_foes(t, s) or t == skip:
 			continue
@@ -1064,6 +1310,8 @@ func apply_damage(v: Soldier, amount: float, attacker: Soldier, weapon_id: int, 
 			apply_damage(driver, amount, attacker, weapon_id, head, from)
 			return
 	if not v.alive or (not crew_loss and (v.protected_t > 0.0 or not can_act())):
+		return
+	if not crew_loss and (v.god or world.in_safe_zone(v.global_position, v.team)):
 		return
 	v.hp -= amount
 	if v.is_gunner() and not crew_loss:
@@ -1170,15 +1418,15 @@ func rocket_impact(id: int, owner_sid: int, pos: Vector3, direct: Soldier, vehic
 	var owner: Soldier = world.soldiers.get(owner_sid)
 	if owner == null:
 		return
+	var parked_hit := -1
 	if direct == null and world.vehicles.has(vehicle_id):
 		var vehicle: Dictionary = world.vehicles[vehicle_id]
 		if vehicle["team"] != owner.team:
 			direct = world.soldiers.get(vehicle["driver"] if vehicle["driver"] != 0 else vehicle.get("gunner", 0))
 			if direct == null:
-				vehicle["hp"] = maxf(float(vehicle["hp"]) - float(C.WEAPONS[C.W.MECH_LAUNCHER if lobbed else C.W.AT_ROCKET]["damage"]), 0)
-				if vehicle["hp"] <= 0:
-					vehicle["respawn_at"] = Net.server_time() + rules.tank_respawn_delay()
-				_push_vehicle(vehicle_id)
+				parked_hit = vehicle_id
+				damage_parked(vehicle_id, float(C.WEAPONS[C.W.MECH_LAUNCHER if lobbed else C.W.AT_ROCKET]["damage"]), owner)
+	_blast_parked(pos, 6.5 if lobbed else 4.5, 85.0 * 0.4 if lobbed else 75.0, owner, parked_hit)
 	if direct and world.are_foes(direct, owner):
 		var weapon := C.W.MECH_LAUNCHER if lobbed else C.W.AT_ROCKET
 		apply_damage(direct, float(C.WEAPONS[weapon]["damage"]) if direct.is_vehicle() else (95.0 if lobbed else 110.0), owner, weapon, false, pos)
@@ -1199,6 +1447,7 @@ func explode(grenade_id: int, owner_sid: int, pos: Vector3) -> void:
 		return
 	var owner: Soldier = world.soldiers.get(owner_sid)
 	_damage_forts(pos, C.GRENADE_RADIUS, C.GRENADE_DAMAGE, owner)
+	_blast_parked(pos, C.GRENADE_RADIUS, C.GRENADE_DAMAGE * C.GRENADE_VS_ARMOR, owner)
 	for s: Soldier in world.soldiers.values():
 		if not s.alive or (owner != null and s != owner and not world.are_foes(s, owner)):
 			continue

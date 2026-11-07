@@ -27,6 +27,9 @@ Wersja 0.9.0 buduje Neonową Dzielnicę od nowa jako duże miasto 520 × 700 m z
 dla czołgów i mechów oraz zmienia balans: czołg pada po 6 rakietach, granaty go ranią, a strzały
 z broni ręcznej ledwo drapią. Szczegóły: `WERSJA_0_9_0.md`.
 
+Wersja 0.12.0 dodaje panel admina pod F1, strefy bezpieczne wokół baz, niszczenie pustych czołgów,
+wsiadanie trwające 2 s, szybkie cięcie pod F i nowy celownik. Szczegóły: `WERSJA_0_12_0.md`.
+
 Wersja 0.11.0 ma listę serwerów z pingiem, serwer bez botów, wybór drużyny po dołączeniu, ping w tabeli pod Tab
 i odrodzenie z menu pod Esc. Szczegóły: `WERSJA_0_11_0.md`.
 
@@ -59,10 +62,10 @@ Czołg ma dwa niezależne stanowiska i fizyczny kadłub, a inżynier buduje fort
 | R | Przeładowanie |
 | 1, 2, 3 | Broń główna, pistolet, miecz (w mechu 1 działo, 2 granatnik) |
 | 4 | Wyrzutnia przeciwpancerna, jeśli szturmowiec wybrał zestaw rakiet |
-| F | Szybkie cięcie mieczem |
+| F | Szybkie cięcie mieczem, potem powrót do broni |
 | G | Granat plazmowy (mech nie ma granatów) |
 | B | Wybór superklasy, gdy masz monetę |
-| E | Wsiadanie do czołgu lub transportera i wysiadanie |
+| E | Wsiadanie do czołgu lub transportera i wysiadanie (2 s, drugie E przerywa) |
 | M | Duża mapa pola bitwy |
 | Z | Czołganie: padnij i wstań (wstajesz też spacją, Shiftem albo C) |
 | Y | Dowódca: artyleria |
@@ -70,6 +73,7 @@ Czołg ma dwa niezależne stanowiska i fizyczny kadłub, a inżynier buduje fort
 | N | Termowizja albo widok normalny: w celowniku wyrzutni, u kierowcy i strzelca czołgu |
 | V / T | Inżynier: wybór fortyfikacji / rozpoczęcie budowy |
 | Tab / Esc | Wyniki / menu |
+| F1 | Panel admina do testów |
 
 ## Tryby gry
 
@@ -308,6 +312,8 @@ godot --headless -- --test=ordnance-net --ordnance-role=server  testowy serwer A
 godot --headless -- --test=ordnance-net --ordnance-role=client  testowy klient AT, uruchom po serwerze
 godot -- --test=modes-shots --only=nowe --out=KATALOG  zrzuty dwóch map sci-fi
 python tools/test_arenas_network.py              lokalny serwer i klient obu nowych map
+godot --headless -- --test=fixes                  wsiadanie, amunicja, puste czołgi, strefy, stamina, F, panel admina
+godot -- --test=perf-weather --windowed --map=neonowa_dzielnica  koszt klatki z pogodą i bez
 godot --headless -- --test=respawn                odrodzenie z menu, także w pojazdach
 godot --headless -- --test=browser-net --port=17870  lista, drużyna, ping i odrodzenie; najpierw uruchom --server --port=17870 --mode=podboj --map=stare_miasto --name=Testowy
 godot -- --test=browser-shots --windowed --port=17870 --out=KATALOG  zrzuty listy, wyboru drużyny, tabeli i menu

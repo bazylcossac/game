@@ -287,7 +287,7 @@ func _select_class(i: int) -> void:
 		_cards[j].add_theme_stylebox_override("panel", s)
 	_detail_name.text = C.class_name_for(_team(), i).to_upper()
 	var cd := C.cls(_team(), i)
-	_detail_desc.text = T.t("%s\nGranaty: %d odłamkowe, %d dymne, %d zapalające.") % [T.t(cd["desc"]), int(cd["grenades"]), int(cd.get("smoke", 0)), int(cd.get("fire", 0))]
+	_detail_desc.text = T.t("Zdrowie: %d") % _class_hp(i) + "\n" + T.t("%s\nGranaty: %d odłamkowe, %d dymne, %d zapalające.") % [T.t(cd["desc"]), int(cd["grenades"]), int(cd.get("smoke", 0)), int(cd.get("fire", 0))]
 	_refresh_gear()
 
 
@@ -298,11 +298,17 @@ func _refresh_gear() -> void:
 	_show_gun(kit)
 	for i in _card_weapons.size():
 		var k := Gear.sanitize(i, Settings.kit_for(i, _team()), world.level, _team())
-		_card_weapons[i].text = String(C.WEAPONS[k["primary"]]["name"])
+		_card_weapons[i].text = "%s  ·  %s" % [T.t(String(C.WEAPONS[k["primary"]]["name"])), T.t("%d HP") % _class_hp(i)]
 		_card_icons[i].texture = HudCanvas.weapon_icon(k["primary"], _team())
 	_rebuild_stats(kit)
 	if tab > 0:
 		_rebuild_tab()
+
+
+## Health this class goes into battle with, the Twardziel perk included.
+func _class_hp(i: int) -> int:
+	var k := Gear.sanitize(i, Settings.kit_for(i, _team()), world.level, _team())
+	return int(C.cls(_team(), i)["hp"]) + (15 if (k["perks"] as Array).has("tough") else 0)
 
 
 func _rebuild_stats(kit: Dictionary) -> void:

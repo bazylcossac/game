@@ -109,6 +109,10 @@ func _screens() -> void:
 	await get_tree().process_frame
 	_walk(w.hud)
 	w.hud.pause_menu.close()
+	w.hud.admin.open()
+	await get_tree().process_frame
+	_walk(w.hud)
+	w.hud.admin.close()
 	main.call("_close_world")
 	await get_tree().process_frame
 	Net.leave()

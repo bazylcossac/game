@@ -40,6 +40,11 @@ var coins := {}
 ## id -> {"team", "pos", "yaw", "hp", "driver", "node"}; server keeps extra fields here too.
 var vehicles := {}
 
+## Each side's home where nobody is hurt, as [center, radius]. Empty outside the flag modes.
+var safe_zones: Array = []
+## The admin panel stopped every bot where it stood.
+var bots_frozen := false
+
 var thermal_on := false
 var _thermal_wait := 0.0
 var _hot: ShaderMaterial
@@ -67,6 +72,7 @@ func _ready() -> void:
 				"name": def["name"], "letter": def["letter"], "start_owner": def["owner"], "owner": def["owner"],
 				"value": 0.0, "pos": Vector3(pos.x, map.ground_height(pos.x, pos.z), pos.z),
 			})
+	_build_safe_zones()
 	forts = Fortifications.new()
 	forts.world = self
 	add_child(forts)
@@ -115,6 +121,25 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	Sfx.stop_ambient()
+
+
+func _build_safe_zones() -> void:
+	if not mode.get("flags", false):
+		return
+	for team in 2:
+		var c: Vector3 = map.bases()[team]
+		var r := C.SAFE_ZONE_MIN
+		for spot: Array in map.tank_depots()[team] + map.apc_depots()[team]:
+			var p: Vector3 = spot[0]
+			r = maxf(r, Vector2(p.x - c.x, p.z - c.z).length() + 10.0)
+		safe_zones.append([c, minf(r, C.SAFE_ZONE_MAX)])
+
+
+func in_safe_zone(pos: Vector3, team: int) -> bool:
+	if safe_zones.is_empty() or team < 0 or team > 1:
+		return false
+	var c: Vector3 = safe_zones[team][0]
+	return Vector2(pos.x - c.x, pos.z - c.z).length() < float(safe_zones[team][1])
 
 
 func _physics_process(_delta: float) -> void:
@@ -409,6 +434,47 @@ func on_joined(sid: int) -> void:
 		controller.attach(local)
 
 
+func on_use_wait(seconds: float) -> void:
+	if hud:
+		hud.canvas.start_use(seconds)
+
+
+func on_admin_state(sid: int, is_god: bool, is_noclip: bool, is_ammo: bool) -> void:
+	var s: Soldier = soldiers.get(sid)
+	if s:
+		s.god = is_god
+		s.noclip = is_noclip
+		s.inf_ammo = is_ammo
+		s.velocity = Vector3.ZERO
+
+
+func on_admin_world(frozen: bool) -> void:
+	bots_frozen = frozen
+
+
+func on_refill(sid: int) -> void:
+	var s: Soldier = soldiers.get(sid)
+	if s and s.alive:
+		s.refill()
+
+
+## A tank nobody was in has been destroyed where it stood.
+func on_vehicle_wrecked(id: int) -> void:
+	var v: Dictionary = vehicles.get(id, {})
+	if v.is_empty() or fx == null:
+		return
+	var at: Vector3 = v["pos"]
+	fx.explosion(at + Vector3.UP * 1.2, true)
+	fx.wreck_smoke(at + Vector3.UP * 0.9, MachineModel.WRECK_TIME - 3.0)
+	var model: TankModel = v["node"]
+	if model:
+		model.visible = true
+		model.play_death()
+		get_tree().create_timer(MachineModel.WRECK_TIME).timeout.connect(func() -> void:
+			if is_instance_valid(model) and float(v["hp"]) <= 0.0 and int(v["driver"]) == 0:
+				model.visible = false)
+
+
 func on_pings(list: Array) -> void:
 	for e: Array in list:
 		var s: Soldier = soldiers.get(e[0])
@@ -664,6 +730,8 @@ func on_vehicle(id: int, team: int, pos: Vector3, yaw: float, hp: float, driver:
 	_sync_vehicle_collider(v)
 	var model: TankModel = v["node"]
 	if model:
+		if hp > 0.0 and model.get("_wrecked"):
+			model.reset_pose()
 		model.visible = driver == 0 and hp > 0.0
 		model.park(pos, yaw)
 
@@ -779,12 +847,15 @@ func on_place(sid: int, pos: Vector3, yaw: float) -> void:
 	s._snaps.clear()
 
 
-func on_transform(sid: int, class_id: int, duration: float, new_hp := -1.0) -> void:
+## `ammo` is what was left in a vehicle seat when its last user got out.
+func on_transform(sid: int, class_id: int, duration: float, new_hp := -1.0, ammo := {}) -> void:
 	var s: Soldier = soldiers.get(sid)
 	if s == null:
 		return
 	var was_vehicle := s.is_vehicle()
 	s.become(class_id, duration, new_hp)
+	if not ammo.is_empty():
+		s.set_ammo(ammo)
 	if class_id == C.VEHICLE_CLASS or class_id == C.APC_CLASS or was_vehicle:
 		if s == local and controller:
 			controller.on_transformed(true)

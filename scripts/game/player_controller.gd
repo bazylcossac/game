@@ -50,6 +50,9 @@ var _pending_throw := -1.0
 var _throw_kind := C.NADE_FRAG
 var _orbit := 0.0
 var _spawned_this_life := false
+## F on a gun: the slot to go back to once the quick cut is over, and how long until then.
+var _melee_back := -1
+var _melee_back_t := 0.0
 var _vm_ready := false
 
 
@@ -76,6 +79,7 @@ func attach(s: Soldier) -> void:
 
 func on_spawned() -> void:
 	build_kind = -1
+	_melee_back = -1
 	state = State.ALIVE
 	_death_t = 0.0
 	_eye = C.STAND_EYE
@@ -94,6 +98,7 @@ func on_spawned() -> void:
 ## The class changed in the field, into or out of a super class.
 func on_transformed(vehicle_change: bool) -> void:
 	picker_open = false
+	_melee_back = -1
 	bloom = 0.0
 	scoped = false
 	vm.ads = 0.0
@@ -216,6 +221,7 @@ func _physics_process(delta: float) -> void:
 	for i in 4:
 		if Input.is_action_just_pressed("slot%d" % (i + 1)):
 			if not picker_open:
+				_melee_back = -1
 				_switch(i)
 			elif i < 2:
 				picker_open = false
@@ -232,9 +238,13 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("melee"):
 		if s.melee_slot() >= 0:
 			if not s.is_melee():
+				_melee_back = s.slot
 				_switch(s.melee_slot())
 			s.switch_t = 0.0
 			_swing()
+			# One cut and the gun comes back, unless the sword is what the player was holding.
+			if _melee_back >= 0:
+				_melee_back_t = float(s.weapon()["rate"]) + 0.12
 	elif Input.is_action_just_pressed("reload") and s.can_reload() and _pending_throw < 0.0:
 		_reload()
 	elif Input.is_action_just_pressed("grenade"):
@@ -253,6 +263,12 @@ func _physics_process(delta: float) -> void:
 		_pending_swing -= delta
 		if _pending_swing < 0.0:
 			Net.send_swing(s.aim_direction(), _view_time())
+	if _melee_back >= 0:
+		_melee_back_t -= delta
+		if _melee_back_t <= 0.0 and _pending_swing < 0.0:
+			if s.is_melee():
+				_switch(_melee_back)
+			_melee_back = -1
 
 	bloom = move_toward(bloom, 0.0, delta * 4.5)
 	# After a burst the muzzle settles back, though never quite to where it began.

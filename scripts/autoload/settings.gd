@@ -10,6 +10,8 @@ var player_name := "Bojownik"
 var side := 0
 var language := "pl"
 var show_fps := false
+## Rain, dust and the weather show. Off is cheaper on weak graphics cards.
+var weather_fx := true
 var sensitivity := 0.22
 var ads_sensitivity := 0.8
 var fov := 85.0
@@ -39,7 +41,7 @@ const KEYS := {
 	"move_forward": [KEY_W], "move_back": [KEY_S], "move_left": [KEY_A], "move_right": [KEY_D],
 	"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "crouch": [KEY_CTRL, KEY_C], "reload": [KEY_R],
 	"grenade": [KEY_G], "grenade_next": [KEY_H], "slot1": [KEY_1], "slot2": [KEY_2], "slot3": [KEY_3], "slot4": [KEY_4],
-	"melee": [KEY_F], "super": [KEY_B], "use": [KEY_E], "seat": [KEY_X], "build_menu": [KEY_V], "build": [KEY_T], "artillery": [KEY_Y], "prone": [KEY_Z], "thermal": [KEY_N], "map": [KEY_M], "scoreboard": [KEY_TAB], "pause": [KEY_ESCAPE],
+	"melee": [KEY_F], "super": [KEY_B], "use": [KEY_E], "seat": [KEY_X], "build_menu": [KEY_V], "build": [KEY_T], "artillery": [KEY_Y], "prone": [KEY_Z], "thermal": [KEY_N], "map": [KEY_M], "scoreboard": [KEY_TAB], "pause": [KEY_ESCAPE], "admin": [KEY_F1],
 }
 
 
@@ -116,6 +118,7 @@ func load_settings() -> void:
 	side = cfg.get_value("player", "side", side)
 	language = cfg.get_value("player", "language", language)
 	show_fps = cfg.get_value("video", "show_fps", show_fps)
+	weather_fx = cfg.get_value("video", "weather", weather_fx)
 	last_server = cfg.get_value("player", "last_server", last_server)
 	sensitivity = cfg.get_value("input", "sensitivity", sensitivity)
 	ads_sensitivity = cfg.get_value("input", "ads_sensitivity", ads_sensitivity)
@@ -160,6 +163,7 @@ func save_settings() -> void:
 	cfg.set_value("player", "side", side)
 	cfg.set_value("player", "language", language)
 	cfg.set_value("video", "show_fps", show_fps)
+	cfg.set_value("video", "weather", weather_fx)
 	cfg.save(PATH)
 
 

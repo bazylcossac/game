@@ -7,7 +7,7 @@ signal closed
 const CONTROLS := [
 	["WSAD", "Ruch"], ["Mysz", "Rozglądanie"], ["LPM", "Strzał / cięcie"], ["PPM", "Celowanie / blok mieczem"],
 	["Shift", "Sprint"], ["Spacja", "Skok"], ["Ctrl / C", "Kucanie"], ["R", "Przeładowanie"],
-	["1 2 3", "Broń"], ["F", "Szybkie cięcie"], ["G", "Granat"], ["B", "Superklasa (moneta)"], ["E", "Wsiadanie do czołgu"], ["Tab", "Wyniki"], ["Esc", "Menu"],
+	["1 2 3", "Broń"], ["F", "Szybkie cięcie"], ["G", "Granat"], ["B", "Superklasa (moneta)"], ["E", "Wsiadanie do czołgu (2 s)"], ["Tab", "Wyniki"], ["Esc", "Menu"], ["F1", "Panel admina"],
 ]
 
 
@@ -58,6 +58,10 @@ func _ready() -> void:
 		Settings.apply_display()))
 	right.add_child(_check("Odwróć oś Y", Settings.invert_y, func(on: bool) -> void: Settings.invert_y = on))
 	right.add_child(_check("Licznik FPS", Settings.show_fps, func(on: bool) -> void: Settings.show_fps = on))
+	right.add_child(_check("Deszcz i efekty pogody", Settings.weather_fx, func(on: bool) -> void:
+		Settings.weather_fx = on
+		for weather in get_tree().root.find_children("*", "Weather", true, false):
+			(weather as Weather).set_effects(on)))
 	right.add_child(UiKit.label("Sterowanie", 22, UiKit.MUTED))
 	var grid := GridContainer.new()
 	grid.columns = 4

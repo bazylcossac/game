@@ -8,6 +8,9 @@ const HIT_TIME_KILL := 0.55
 var world: World
 var killed_by: Soldier = null
 var killed_with := -1
+## Getting in or out of a vehicle: seconds left and the whole wait.
+var _use_left := 0.0
+var _use_total := 0.0
 var death_t := 0.0
 var flash_hurt := 0.0
 
@@ -42,11 +45,18 @@ func add_kill(k: Soldier, v: Soldier, weapon_id: int, head: bool) -> void:
 	var tag := T.t("OGIEŃ" if weapon_id == C.WEAPON_FIRE else ("GRANAT" if weapon_id < 0 else String(C.WEAPONS[weapon_id]["short"])))
 	if weapon_id == C.WEAPON_RESPAWN:
 		tag = T.t("ODRODZENIE")
+	elif weapon_id == C.WEAPON_ADMIN:
+		tag = "ADMIN"
 	_feed.push_front({"k": k.pname if k else "", "kc": world.side_color(k) if k else UiKit.INK, "v": v.pname, "vc": world.side_color(v),
 		"w": tag, "head": head, "t": 6.0,
 		"mine": world.local != null and (k == world.local or v == world.local)})
 	if _feed.size() > 6:
 		_feed.pop_back()
+
+
+func start_use(seconds: float) -> void:
+	_use_left = seconds
+	_use_total = seconds
 
 
 func big_message(text: String, color: Color) -> void:
@@ -86,6 +96,7 @@ func _process(delta: float) -> void:
 			if arr[i]["t"] <= 0.0:
 				arr.remove_at(i)
 	_hit_t = maxf(_hit_t - delta, 0.0)
+	_use_left = maxf(_use_left - delta, 0.0)
 	flash_hurt = maxf(flash_hurt - delta * 1.3, 0.0)
 	death_t += delta
 	if not _banner.is_empty():
@@ -129,6 +140,8 @@ func _draw() -> void:
 		_draw_weapon_panel(me)
 		_draw_capture_status(me)
 		_draw_super_status(me)
+		_draw_use_bar(me)
+		_draw_test_modes(me)
 		_draw_popups()
 	elif me != null:
 		_draw_death_card()
@@ -231,16 +244,21 @@ func _draw_crosshair(c: PlayerController) -> void:
 			draw_arc(center, 24.0, -2.4, -0.74, 24, UiKit.BLUE, 3.0, true)
 		return
 	if c.vm.ads > 0.8:
-		draw_circle(center, 1.6, col)
+		draw_circle(center, 2.6, Color(0, 0, 0, 0.55))
+		draw_circle(center, 1.7, col)
 		return
-	var target_gap := 4.0 + c.current_spread() * tan(deg_to_rad(1.0)) * size.y / (2.0 * tan(deg_to_rad(c.camera.fov * 0.5)))
+	# Four arms round an open middle, so the target stays visible, with a dot on the exact point.
+	var target_gap := 9.0 + c.current_spread() * tan(deg_to_rad(1.0)) * size.y / (2.0 * tan(deg_to_rad(c.camera.fov * 0.5)))
 	_smooth_spread = lerpf(_smooth_spread, target_gap, 0.3)
 	var g := _smooth_spread
-	var l := 9.0
+	var l := 10.0
+	var shade := Color(0, 0, 0, 0.55)
 	for d: Vector2 in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
-		draw_line(center + d * g + Vector2(1, 1), center + d * (g + l) + Vector2(1, 1), Color(0, 0, 0, 0.5), 2.0)
+		draw_line(center + d * (g - 1.0), center + d * (g + l + 1.0), shade, 4.0)
+	for d: Vector2 in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
 		draw_line(center + d * g, center + d * (g + l), col, 2.0)
-	draw_circle(center, 1.2, col)
+	draw_circle(center, 2.4, shade)
+	draw_circle(center, 1.5, col)
 
 
 ## A cross that snaps open and settles: white for a hit, gold for the head, red for a kill.
@@ -292,9 +310,40 @@ func _draw_vitals(s: Soldier) -> void:
 	draw_rect(Rect2(bar_x, y + 12, bar_w, 9), Color(1, 1, 1, 0.1))
 	draw_rect(Rect2(bar_x, y + 12, bar_w * frac, 9), col)
 	draw_rect(Rect2(bar_x, y + 28, bar_w, 4), Color(1, 1, 1, 0.08))
-	draw_rect(Rect2(bar_x, y + 28, bar_w * (s.stamina / s.stamina_max), 4), UiKit.BRASS)
+	draw_rect(Rect2(bar_x, y + 28, bar_w * (s.stamina / s.stamina_max), 4), UiKit.RED if s.exhausted else UiKit.BRASS)
 	if s.protected_t > 0.0:
 		_text(_f_semi, Vector2(x, y - 276), "OCHRONA PO ODRODZENIU", 20, UiKit.BLUE)
+	if world.in_safe_zone(s.global_position, s.team):
+		_text(_f_semi, Vector2(x, y - 300), "STREFA BEZPIECZNA: NIKT CIĘ TU NIE ZRANI", 20, UiKit.GREEN)
+
+
+## A bar under the crosshair while getting in or out of a vehicle.
+func _draw_use_bar(s: Soldier) -> void:
+	if _use_left <= 0.0 or _use_total <= 0.0:
+		return
+	var w := 260.0
+	var at := Vector2(size.x * 0.5 - w * 0.5, size.y * 0.5 + 110.0)
+	var label := "WYSIADANIE" if s.vehicle_id >= 0 or s.riding >= 0 else "WSIADANIE"
+	_text(_f_semi, at + Vector2(0, -8), label, 20, UiKit.INK, HORIZONTAL_ALIGNMENT_CENTER, w)
+	draw_rect(Rect2(at, Vector2(w, 8)), Color(0, 0, 0, 0.55))
+	draw_rect(Rect2(at, Vector2(w * (1.0 - _use_left / _use_total), 8)), UiKit.BRASS)
+	_text(_f_med, at + Vector2(0, 30), "E: przerwij", 18, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER, w)
+
+
+## What the admin panel has switched on, so nobody forgets they cannot die.
+func _draw_test_modes(s: Soldier) -> void:
+	var on := PackedStringArray()
+	if s.god:
+		on.append(T.t("NIEŚMIERTELNOŚĆ"))
+	if s.noclip:
+		on.append("NOCLIP")
+	if s.inf_ammo:
+		on.append(T.t("NIESKOŃCZONA AMUNICJA"))
+	if world.bots_frozen:
+		on.append(T.t("BOTY ZAMROŻONE"))
+	if on.is_empty():
+		return
+	_text(_f_semi, Vector2(28, size.y - 112), T.t("TRYB TESTOWY: %s") % "  ·  ".join(on), 20, UiKit.BRASS)
 
 
 ## The white outline of a gun, from tools run through --test=weapon-icons. Null for vehicle guns.

@@ -18,6 +18,9 @@ extends Node
 ##   menu-art windowed: stages the menu card pictures, see menu_art.gd and tools/menu_art.py.
 ##   lang: Polish and English text, format codes and screens, see lang_test.gd.
 ##   browser-net headless client against a real --server: the list, sides, ping, respawn, see browser_network.gd.
+##   fixes headless: vehicle use time, kept ammo, empty vehicles, safe zones, stamina, F, admin panel.
+##   fixes-shots windowed: crosshair, big map, class health, admin panel, see fixes_shots.gd.
+##   perf-weather windowed: frame cost with the weather on and off, see weather_perf.gd.
 ##   respawn headless: the pause menu's respawn in vehicles and modes, see respawn_test.gd.
 ##   browser-shots windowed: the server list, side pick, score table and pause menu, see browser_shots.gd.
 ##   neon: whether tanks and mechs fit every street of Neonowa Dzielnica, see neon_test.gd.
@@ -128,6 +131,9 @@ func _ready() -> void:
 		"lang": add_child(load("res://scripts/dev/lang_test.gd").new())
 		"browser-net": add_child(load("res://scripts/dev/browser_network.gd").new())
 		"respawn": add_child(load("res://scripts/dev/respawn_test.gd").new())
+		"fixes": add_child(load("res://scripts/dev/fixes_test.gd").new())
+		"fixes-shots": add_child(load("res://scripts/dev/fixes_shots.gd").new())
+		"perf-weather": add_child(load("res://scripts/dev/weather_perf.gd").new())
 		"browser-shots": add_child(load("res://scripts/dev/browser_shots.gd").new())
 		"scratch": add_child(load(Settings.arg("file")).new())
 		_: get_tree().quit(2)
@@ -437,7 +443,7 @@ func _client() -> void:
 		print("[client] position accepted by the server: %s" % s.global_position.round())
 		await _wait(float(Settings.arg("tank-time", "6")))
 		Net.send_use()
-		await _wait(0.6)
+		await _wait(C.USE_TIME + 0.8)
 		print("[client] %s left the tank: %s, %.0f hp" % ["PASS" if not s.is_vehicle() else "FAIL", s.class_data()["name"], s.hp])
 		get_tree().quit(0)
 		return

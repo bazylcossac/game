@@ -11,6 +11,7 @@ var big_map: TacticalMap
 var deploy: DeployScreen
 var scoreboard: Scoreboard
 var pause_menu: PauseMenu
+var admin: AdminPanel
 var end_screen: EndScreen
 var vignette: ColorRect
 var _vignette_mat: ShaderMaterial
@@ -86,6 +87,11 @@ void fragment() {
 	UiKit.fill(pause_menu)
 	pause_menu.visible = false
 	root.add_child(pause_menu)
+	admin = AdminPanel.new()
+	admin.world = world
+	UiKit.fill(admin)
+	admin.visible = false
+	root.add_child(admin)
 	_set_playing(false)
 
 
@@ -134,7 +140,9 @@ func _process(_delta: float) -> void:
 	_vignette_mat.set_shader_parameter("hurt", maxf(hurt * 0.75, canvas.flash_hurt))
 	var overlay := deploy.visible or pause_menu.visible or end_screen.visible
 	scoreboard.visible = (Input.is_action_pressed("scoreboard") and not overlay and playing)
-	c.input_blocked = pause_menu.visible
+	if Input.is_action_just_pressed("admin") and world.local != null and not pause_menu.visible:
+		admin.toggle()
+	c.input_blocked = pause_menu.visible or admin.visible
 	if big_map == null:
 		_build_big_map()
 	if Input.is_action_just_pressed("map") and playing and not overlay:
@@ -158,7 +166,7 @@ func hide_deploy() -> void:
 
 
 func toggle_pause() -> void:
-	if end_screen.visible:
+	if end_screen.visible or admin.visible:
 		return
 	pause_menu.toggle()
 

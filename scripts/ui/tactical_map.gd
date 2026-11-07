@@ -109,8 +109,23 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), UiKit.LINE, false, 1.0)
 
 
+func _my_team() -> int:
+	return world.local.team if world.local else C.Team.RESISTANCE
+
+
 func _draw_bases(t: Transform2D) -> void:
-	if mini or world.ffa:
+	if world.ffa:
+		return
+	# The safe zones, on every map: a soft ring round each home.
+	for team in world.safe_zones.size():
+		var zone: Array = world.safe_zones[team]
+		var center: Vector3 = zone[0]
+		var col: Color = C.TEAM_COLORS[team]
+		var radius := float(zone[1]) * t.get_scale().x
+		var p := t * Vector2(center.x, center.z)
+		draw_circle(p, radius, Color(col.r, col.g, col.b, 0.07))
+		draw_arc(p, radius, 0, TAU, 48, Color(col.r, col.g, col.b, 0.45), 1.5, true)
+	if mini:
 		return
 	var f := UiKit.font("bold")
 	for team in 2:
@@ -118,8 +133,8 @@ func _draw_bases(t: Transform2D) -> void:
 		var p := t * Vector2(b.x, b.z)
 		var col: Color = C.TEAM_COLORS[team]
 		var r := Rect2(p - Vector2(46, 15), Vector2(92, 30))
-		var hot := _hot == -1 and team == C.Team.RESISTANCE
-		var chosen := selected_flag == -1 and team == C.Team.RESISTANCE
+		var hot := _hot == -1 and team == _my_team()
+		var chosen := selected_flag == -1 and team == _my_team()
 		draw_rect(r, Color(col.r, col.g, col.b, 0.34 if (hot or chosen) else 0.14))
 		draw_rect(r, col, false, 2.0 if chosen else 1.0)
 		draw_string(f, r.position + Vector2(0, 22), T.t("BAZA"), HORIZONTAL_ALIGNMENT_CENTER, 92, 20, col)
@@ -221,8 +236,26 @@ func _draw_soldiers(t: Transform2D) -> void:
 		elif float(world.spotted.get(s.sid, 0.0)) > now or s.is_mech():
 			draw_circle(p, 7.0 if s.is_mech() else 4.0, col)
 	if not mini and me.alive:
-		var p := t * Vector2(me.global_position.x, me.global_position.z)
-		draw_circle(p, 6.0, UiKit.INK)
+		_draw_me(t * Vector2(me.global_position.x, me.global_position.z), me.yaw)
+
+
+## The player on the big map: a cone where they look and an arrow along it.
+func _draw_me(p: Vector2, yaw: float) -> void:
+	var ahead := Vector2(-sin(yaw), -cos(yaw))
+	var side := Vector2(-ahead.y, ahead.x)
+	var reach := 70.0
+	var cone := PackedVector2Array([p])
+	for i in 11:
+		var a := lerpf(-0.55, 0.55, i / 10.0)
+		cone.append(p + ahead.rotated(a) * reach)
+	draw_colored_polygon(cone, Color(UiKit.BRASS, 0.22))
+	draw_polyline(PackedVector2Array([cone[1], p, cone[cone.size() - 1]]), Color(UiKit.BRASS, 0.7), 1.5, true)
+	var arrow := PackedVector2Array([p + ahead * 19.0, p - ahead * 10.0 + side * 11.0, p - ahead * 4.0, p - ahead * 10.0 - side * 11.0])
+	draw_colored_polygon(arrow, Color(0.03, 0.035, 0.05, 0.95))
+	var inner := PackedVector2Array()
+	for q: Vector2 in arrow:
+		inner.append(p + (q - p) * 0.72)
+	draw_colored_polygon(inner, UiKit.BRASS)
 
 
 func _gui_input(event: InputEvent) -> void:
@@ -250,7 +283,7 @@ func _pick(pos: Vector2) -> int:
 		var fp: Vector3 = world.flags[i]["pos"]
 		if (t * Vector2(fp.x, fp.z)).distance_to(pos) < 28.0:
 			return i
-	var b := world.home_of(C.Team.RESISTANCE)
+	var b := world.home_of(_my_team())
 	if (t * Vector2(b.x, b.z)).distance_to(pos) < 50.0:
 		return -1
 	return NOTHING

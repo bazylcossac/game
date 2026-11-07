@@ -28,6 +28,14 @@ var token := ""
 var level := 1
 ## Round trip to the server in ms, as the server last measured it. -1 until it has.
 var ping := -1
+## Test switches from the admin panel. The server decides them and tells every machine.
+var god := false
+var noclip := false
+var inf_ammo := false
+## Ran out of stamina: no sprint until enough of it is back.
+var exhausted := false
+## What the soldier carried on foot, kept while they sit in a vehicle.
+var _foot_ammo := {}
 ## Weapons, attachments and perks chosen for this life. Empty for bots.
 var kit := {}
 var slot_stats: Array[Dictionary] = []
@@ -294,6 +302,7 @@ func respawn(pos: Vector3, new_yaw: float, new_class: int, new_kit: Dictionary =
 	if riding >= 0:
 		set_riding(-1)
 	alive = true
+	_foot_ammo = {}
 	_apply_class(new_class)
 	protected_t = C.SPAWN_PROTECTION
 	damagers.clear()
@@ -310,7 +319,15 @@ func respawn(pos: Vector3, new_yaw: float, new_class: int, new_kit: Dictionary =
 func become(new_class: int, duration: float, new_hp := -1.0) -> void:
 	if new_class == C.SUPER_MECH or new_class == C.SUPER_SPECIAL:
 		coins = 0
+	var was_vehicle := is_vehicle()
+	var to_vehicle: bool = C.cls(team, new_class).get("vehicle", false)
+	# Climbing in and out is no way to a fresh set of magazines and grenades.
+	if to_vehicle and not was_vehicle:
+		_foot_ammo = ammo_state()
 	_apply_class(new_class)
+	if was_vehicle and not to_vehicle and not _foot_ammo.is_empty():
+		set_ammo(_foot_ammo)
+		_foot_ammo = {}
 	super_t = duration
 	if new_hp >= 0.0:
 		hp = new_hp
@@ -361,6 +378,7 @@ func _apply_class(new_class: int) -> void:
 	swing_t = 0.0
 	switch_t = 0.0
 	stamina = stamina_max
+	exhausted = false
 	jet_fuel = C.JET_FUEL
 	jetting = false
 	want_fly = false
@@ -430,7 +448,7 @@ func die() -> void:
 
 func _physics_process(delta: float) -> void:
 	# Anyone squeezed through the terrain is put back on top of it, not left to fall for ever.
-	if alive and global_position.y < FELL_THROUGH and control != Driver.PROXY_VIEW:
+	if alive and not noclip and global_position.y < FELL_THROUGH and control != Driver.PROXY_VIEW:
 		var ground := world.map.ground_height(global_position.x, global_position.z)
 		if global_position.y < ground - 2.5:
 			global_position.y = ground + 0.5
@@ -529,8 +547,16 @@ func simulate_move(delta: float) -> void:
 	if cd.get("vehicle", false):
 		_simulate_tank(delta)
 		return
+	if noclip:
+		_simulate_noclip(delta)
+		return
 	var speed: float = C.WALK_SPEED * float(cd["speed"]) * float(weapon()["move_mult"])
-	sprinting = want_sprint and not cd.get("no_sprint", false) and wish.length_squared() > 0.1 and stamina > 0.2 and not aiming and not blocking and not crouching and reload_t <= 0.0
+	# Without the lock the legs would stop and start on every scrap of stamina that came back.
+	if stamina <= 0.05:
+		exhausted = true
+	elif exhausted and stamina >= stamina_max * C.STAMINA_RECOVER:
+		exhausted = false
+	sprinting = want_sprint and not exhausted and not cd.get("no_sprint", false) and wish.length_squared() > 0.1 and stamina > 0.2 and not aiming and not blocking and not crouching and reload_t <= 0.0
 	if sprinting:
 		speed = C.SPRINT_SPEED * float(cd["speed"]) * float(weapon()["move_mult"])
 		stamina = maxf(stamina - delta, 0.0)
@@ -571,6 +597,22 @@ func simulate_move(delta: float) -> void:
 	if cd.get("jetpack", false):
 		_tick_jetpack(delta)
 	move_and_slide()
+
+
+## Flying through everything: forward goes where the eyes look, Space up, Ctrl down, Shift fast.
+func _simulate_noclip(delta: float) -> void:
+	sprinting = false
+	var right := Basis(Vector3.UP, yaw) * Vector3.RIGHT
+	var dir := aim_direction() * drive.y + right * drive.x
+	if want_fly:
+		dir += Vector3.UP
+	if want_crouch:
+		dir += Vector3.DOWN
+	if dir.length_squared() > 1.0:
+		dir = dir.normalized()
+	velocity = dir * (40.0 if want_sprint else 14.0)
+	global_position += velocity * delta
+	want_jump = false
 
 
 ## Players steer the hull with `drive`; bots hand in a `wish` direction and it steers for them.
@@ -672,7 +714,8 @@ func can_fire() -> bool:
 
 
 func consume_shot() -> void:
-	mags[slot] -= 1
+	if not inf_ammo:
+		mags[slot] -= 1
 	fire_cd = weapon()["rate"]
 	cloak_block_t = C.CLOAK_BREAK_TIME
 
@@ -697,6 +740,37 @@ func finish_reload() -> void:
 	var taken: int = mini(need, reserves[slot])
 	mags[slot] += taken
 	reserves[slot] -= taken
+
+
+func ammo_state() -> Dictionary:
+	return {"mags": mags.duplicate(), "reserves": reserves.duplicate(), "nades": nades.duplicate(), "slot": slot, "nade_kind": nade_kind}
+
+
+## Puts back what `ammo_state` saved, as long as it was saved for the same weapons.
+func set_ammo(state: Dictionary) -> void:
+	var saved_mags: Array = state.get("mags", [])
+	if saved_mags.size() != mags.size():
+		return
+	mags = saved_mags.duplicate()
+	reserves = (state["reserves"] as Array).duplicate()
+	if (state["nades"] as Array).size() == nades.size():
+		nades = (state["nades"] as Array).duplicate()
+		nade_kind = int(state["nade_kind"])
+	slot = clampi(int(state["slot"]), 0, loadout.size() - 1)
+	if model:
+		model.set_weapon(weapon_id(), weapon_parts())
+
+
+## Full health and every magazine, from the admin panel.
+func refill() -> void:
+	hp = max_hp
+	for i in loadout.size():
+		mags[i] = slot_stats[i]["mag"]
+		reserves[i] = slot_stats[i]["reserve"]
+	var cd := class_data()
+	nades = [int(cd["grenades"]) + (1 if has_perk("grenadier") else 0), int(cd.get("smoke", 0)), int(cd.get("fire", 0))]
+	stamina = stamina_max
+	exhausted = false
 
 
 func switch_to(new_slot: int) -> void:

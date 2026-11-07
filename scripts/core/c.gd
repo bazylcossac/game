@@ -4,7 +4,7 @@ extends RefCounted
 
 const GAME_TITLE := "MIECZ DAWIDA"
 const GAME_SUBTITLE := "LASEROWY FRONT"
-const VERSION := "0.11.0"
+const VERSION := "0.12.0"
 const DEFAULT_PORT := 7777
 const MAX_PLAYERS := 16
 ## Spare connections, so a full server can still answer the server lists asking about it.
@@ -369,6 +369,14 @@ const JUMP_VELOCITY := 7.2
 const GROUND_ACCEL := 52.0
 const AIR_ACCEL := 9.0
 const STAMINA_MAX := 7.0
+## Run dry and the legs need this share of the stamina back before they sprint again.
+const STAMINA_RECOVER := 0.3
+## Seconds of holding still beside a vehicle to get in, or inside it to get out.
+const USE_TIME := 2.0
+## A side's home: nobody standing in it can be hurt, soldiers or vehicles. Flag modes only.
+## The radius grows to take in the side's own tank park, up to the larger number.
+const SAFE_ZONE_MIN := 32.0
+const SAFE_ZONE_MAX := 62.0
 const STAND_EYE := 1.62
 const CROUCH_EYE := 1.0
 const PRONE_EYE := 0.42
@@ -486,6 +494,8 @@ const BLEED_DOMINANT := 2.5
 const WEAPON_FIRE := -3
 ## Not a weapon: the player gave up this life from the pause menu.
 const WEAPON_RESPAWN := -4
+## Not a weapon: the admin panel took the life.
+const WEAPON_ADMIN := -5
 
 # Score
 const SCORE_KILL := 100

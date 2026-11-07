@@ -10,6 +10,8 @@ func _ready() -> void:
 	while Net.world == null:
 		await get_tree().process_frame
 	var w := Net.world
+	# These tanks stand in the base, where the safe zone would stop the damage this test is about.
+	w.safe_zones.clear()
 	var m := w.server
 	await get_tree().process_frame
 	var carrier := -1

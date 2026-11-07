@@ -56,8 +56,17 @@ func setup(world: Node, spec: Dictionary) -> void:
 		_build_rain()
 	if spec.get("dust", false):
 		_build_dust()
+	set_effects(Settings.weather_fx)
 	if _env.sky and _env.sky.sky_material is ShaderMaterial:
 		_sky = _env.sky.sky_material
+
+
+## The settings switch: rain and dust stop falling, the ships and lightning stay.
+func set_effects(on: bool) -> void:
+	for p: GPUParticles3D in [_rain, _dust]:
+		if p:
+			p.emitting = on
+			p.visible = on
 
 
 ## Falls round the player, so it is heavy where anyone can see it and costs nothing elsewhere.

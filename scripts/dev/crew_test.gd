@@ -18,6 +18,8 @@ func _ready() -> void:
 		await get_tree().process_frame
 	var w := Net.world
 	var m := w.server
+	# These tanks stand in the base, where the safe zone would stop the damage this test is about.
+	w.safe_zones.clear()
 	var v: Dictionary = w.vehicles[1]
 	var a := _person(w, 501, 0, v["pos"] + Vector3(4, 0.1, 0))
 	var b := _person(w, 502, 0, v["pos"] + Vector3(-4, 0.1, 0))
