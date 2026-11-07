@@ -201,6 +201,6 @@ func apply_quality(env: Environment, sun: DirectionalLight3D) -> void:
 	vp.use_taa = quality >= 2
 	vp.msaa_3d = Viewport.MSAA_DISABLED
 	if sun:
-		sun.shadow_enabled = true
+		sun.shadow_enabled = not sun.has_meta("no_shadow")
 		sun.directional_shadow_max_distance = [90.0, 140.0, 220.0, 320.0][quality]
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL if quality == 0 else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
