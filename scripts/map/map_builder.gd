@@ -22,6 +22,12 @@ var floor_y := 0.0
 ## Rects for the tactical map: {"center": Vector2, "size": Vector2, "yaw": float, "kind": String}
 var footprints: Array[Dictionary] = []
 
+## Side of the square each drawn batch covers. Collision keeps CHUNK whatever this is.
+var batch_chunk := CHUNK
+## While set, whatever is drawn goes into one batch per material under this name, wherever it
+## stands: for scenery so far off that it is always seen whole, like a skyline.
+var batch_tag := ""
+
 var _batches := {}
 var _collision := {}
 
@@ -37,7 +43,7 @@ const FACES := [
 
 
 func _batch(mat: String, origin: Vector3) -> Batch:
-	var key := "%s|%d|%d" % [mat, int(floor(origin.x / CHUNK)), int(floor(origin.z / CHUNK))]
+	var key := "%s|%s" % [mat, batch_tag] if batch_tag != "" else "%s|%d|%d" % [mat, int(floor(origin.x / batch_chunk)), int(floor(origin.z / batch_chunk))]
 	if not _batches.has(key):
 		_batches[key] = Batch.new()
 	return _batches[key]

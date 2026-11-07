@@ -189,7 +189,10 @@ static func _night(env: Environment, sun: DirectionalLight3D) -> void:
 	env.sdfgi_enabled = false
 	env.ssr_enabled = Settings.quality >= 1
 	env.ssr_max_steps = 32
-	# Moonlight casts weak shadows, and the fog swallows them long before the far end of an avenue.
+	# Moonlight this weak under an ambient sky three times as bright leaves shadows nobody can see
+	# (shots taken with and without them match), yet drawing the city a second time into the shadow
+	# map and filtering it cost a quarter of the frame. The neon and the lamps light the night.
+	sun.shadow_enabled = false
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	sun.directional_shadow_max_distance = 110.0
 	RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_LOW)

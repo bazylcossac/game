@@ -179,6 +179,10 @@ func build(parent: Node3D, map_seed: int, headless: bool) -> void:
 	b.nav = NavGrid.new(2.0)
 	b.nav_wide = NavGrid.new(2.0)
 	b.nav_tank = NavGrid.new(2.0)
+	# A city block is cheap to draw and expensive to ask for: batches twice the size of the usual
+	# ones nearly halve the draw calls, and the towers' occluders still hide most of them.
+	b.batch_chunk = 128.0
+	props.chunk = 256.0
 	super.build(parent, map_seed, headless)
 	if headless:
 		return
@@ -227,9 +231,11 @@ func _point(p: Vector3) -> Vector3:
 
 func _edge() -> void:
 	# Beyond the last street the view runs into more city, not into a wall.
+	b.batch_tag = "far"
 	for s: float in [-1.0, 1.0]:
 		b.box(Vector3(s * (HALF.x + 18.0), 30, 0), Vector3(34, 60, HALF.y * 2.0 + 72.0), "facade_night", Color(0.7, 0.76, 0.9), false)
 		b.box(Vector3(0, 30, s * (HALF.y + 18.0)), Vector3(HALF.x * 2.0 + 72.0, 60, 34), "facade_night", Color(0.7, 0.76, 0.9), false)
+	b.batch_tag = ""
 
 
 func _blocks() -> void:
@@ -698,11 +704,15 @@ func _gantries() -> void:
 			b.box(Vector3(cx, 11.0, z), Vector3(AVENUE * 2.0 + 4.0, 0.14, 0.14), strip, Color.WHITE, false)
 
 
+## The skyline beyond the map and the wall of city at its edge. Nobody comes near either, so they
+## are drawn as one batch per material, like a backdrop, instead of in thirty pieces.
 func _distant_city() -> void:
+	b.batch_tag = "far"
 	for i in 44:
 		var a := TAU * i / 44.0
 		var p := Vector3(sin(a) * 440.0, 0, cos(a) * 540.0)
 		_far_tower(p, Vector3(46 + _roll(p.x, p.z, 14.0) * 30.0, 90 + _roll(p.x, p.z, 15.0) * 190.0, 46 + _roll(p.x, p.z, 16.0) * 30.0))
+	b.batch_tag = ""
 
 
 # ---------------------------------------------------------------- props

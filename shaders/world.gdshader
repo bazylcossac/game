@@ -36,10 +36,37 @@ void fragment() {
 	vec2 ux = world_pos.zy / tile;
 	vec2 uy = world_pos.xz / tile;
 	vec2 uz = world_pos.xy / tile;
-	vec3 tex = texture(albedo_tex, ux).rgb * w.x + texture(albedo_tex, uy).rgb * w.y + texture(albedo_tex, uz).rgb * w.z;
-	vec3 nx = unpack(texture(normal_tex, ux).rgb);
-	vec3 ny = unpack(texture(normal_tex, uy).rgb);
-	vec3 nz = unpack(texture(normal_tex, uz).rgb);
+	// Gradients taken here, outside the branch below, so each projection keeps its proper mip
+	// level even where neighbouring pixels of a box edge take different branches.
+	vec3 gx = dFdx(world_pos) / tile;
+	vec3 gy = dFdy(world_pos) / tile;
+	vec3 tex;
+	vec3 nx = vec3(0.0);
+	vec3 ny = vec3(0.0);
+	vec3 nz = vec3(0.0);
+	float top = max(w.x, max(w.y, w.z));
+	if (top > 0.97) {
+		// Nearly every face here is a wall, floor or roof square to the world, and the other two
+		// projections weigh nothing on it: read one, not three. Two texture reads instead of six.
+		if (w.x >= top) {
+			w = vec3(1.0, 0.0, 0.0);
+			tex = textureGrad(albedo_tex, ux, gx.zy, gy.zy).rgb;
+			nx = unpack(textureGrad(normal_tex, ux, gx.zy, gy.zy).rgb);
+		} else if (w.y >= top) {
+			w = vec3(0.0, 1.0, 0.0);
+			tex = textureGrad(albedo_tex, uy, gx.xz, gy.xz).rgb;
+			ny = unpack(textureGrad(normal_tex, uy, gx.xz, gy.xz).rgb);
+		} else {
+			w = vec3(0.0, 0.0, 1.0);
+			tex = textureGrad(albedo_tex, uz, gx.xy, gy.xy).rgb;
+			nz = unpack(textureGrad(normal_tex, uz, gx.xy, gy.xy).rgb);
+		}
+	} else {
+		tex = textureGrad(albedo_tex, ux, gx.zy, gy.zy).rgb * w.x + textureGrad(albedo_tex, uy, gx.xz, gy.xz).rgb * w.y + textureGrad(albedo_tex, uz, gx.xy, gy.xy).rgb * w.z;
+		nx = unpack(textureGrad(normal_tex, ux, gx.zy, gy.zy).rgb);
+		ny = unpack(textureGrad(normal_tex, uy, gx.xz, gy.xz).rgb);
+		nz = unpack(textureGrad(normal_tex, uz, gx.xy, gy.xy).rgb);
+	}
 	// Whiteout blend: each projection tilts the world normal about its own axis.
 	vec3 tilted = normalize(vec3(
 		n.x + (nz.x * w.z + ny.x * w.y) * normal_strength,

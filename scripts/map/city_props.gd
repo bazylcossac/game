@@ -13,13 +13,15 @@ const LARGE := ["tree_oak", "tree_slim", "tree_palm", "bus", "lamp_city", "stump
 static var _meshes := {}
 
 var enabled := true
+## Side of the square of map each MultiMesh covers.
+var chunk := CHUNK
 var _batches := {}
 
 
 func place(prop: String, xf: Transform3D, color := Color.WHITE) -> void:
 	if not enabled:
 		return
-	var key := "%s|%d|%d" % [prop, int(floor(xf.origin.x / CHUNK)), int(floor(xf.origin.z / CHUNK))]
+	var key := "%s|%d|%d" % [prop, int(floor(xf.origin.x / chunk)), int(floor(xf.origin.z / chunk))]
 	if not _batches.has(key):
 		_batches[key] = {"prop": prop, "items": []}
 	_batches[key]["items"].append([xf, color])
