@@ -92,3 +92,58 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "${GITHUB_REF_NAME}" dist/* --title "${GITHUB_REF_NAME}" --generate-notes
+
+  # After a good build of main, the dedicated server on the VPS gets the same commit, so the
+  # "najnowsza" download and the server always run the same version. Needs the repository
+  # secrets VPS_HOST, VPS_SSH_KEY (a key only for this) and VPS_KNOWN_HOSTS (the server's host key).
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Spakuj serwer
+        run: |
+          mkdir -p paczka_vps
+          tar -czf paczka_vps/miecz-dawida-serwer.tar.gz project.godot main.tscn scripts shaders assets
+          cp deploy/install.sh deploy/miecz-dawida.service deploy/miecz-dawida.env paczka_vps/
+          ls -la paczka_vps
+
+      - name: Klucz SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host vps\n  HostName %s\n  User root\n  IdentityFile ~/.ssh/deploy\n  StrictHostKeyChecking yes\n  ServerAliveInterval 20\n' "$VPS_HOST" > ~/.ssh/config
+
+      - name: Wgraj i zainstaluj na VPS
+        run: |
+          dir="/root/miecz-deploy/${GITHUB_SHA}"
+          ssh vps "mkdir -p '$dir'"
+          scp -q paczka_vps/* "vps:$dir/"
+          # The install keeps going even if this run is cancelled, and one runs at a time.
+          ssh vps "cd '$dir' && nohup flock /root/miecz-deploy.lock env DEBIAN_FRONTEND=noninteractive bash install.sh > '$dir/install.log' 2>&1 < /dev/null & echo \$! > '$dir/pid'"
+          for i in $(seq 1 120); do
+            sleep 10
+            if ssh vps "grep -q '^Gotowe' '$dir/install.log' || ! kill -0 \$(cat '$dir/pid') 2> /dev/null"; then
+              break
+            fi
+          done
+          ssh vps "tail -n 25 '$dir/install.log'"
+          ssh vps "grep -q '^Gotowe' '$dir/install.log'"
+
+      - name: Sprawdź serwer
+        run: |
+          sleep 5
+          ssh vps "systemctl is-active miecz-dawida && journalctl -u miecz-dawida -n 6 --no-pager"
+          # Keep the last three uploads, for a look at their install logs.
+          ssh vps "ls -1dt /root/miecz-deploy/*/ | tail -n +4 | xargs -r rm -rf"

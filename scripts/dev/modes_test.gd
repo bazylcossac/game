@@ -339,6 +339,9 @@ func _tanks() -> void:
 	var used: int = w.tickets[0]
 	s.protected_t = 0.0
 	w.server.apply_damage(s, 9999.0, null, -1, false, s.global_position)
+	_check("czołgi: w strefie bezpiecznej bazy czołg jest nietykalny", s.alive and w.tickets[0] == used)
+	s.global_position = w.flags[1]["pos"] + Vector3(0, 0.3, 0)
+	w.server.apply_damage(s, 9999.0, null, -1, false, s.global_position)
 	_check("czołgi: zniszczenie kosztuje ticket", w.tickets[0] <= used - 1)
 	_check("czołgi: załoga ginie z czołgiem", not s.alive)
 	await _until(func() -> bool: return Net.server_time() - s.death_time > C.RESPAWN_DELAY, 10.0)
