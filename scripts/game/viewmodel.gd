@@ -28,7 +28,7 @@ const POSES := {
 	C.W.CARBINE: {"hip": Vector3(0.2, -0.21, -0.46), "ads": Vector3(0.0, -0.145, -0.3)},
 	C.W.SNIPER: {"hip": Vector3(0.2, -0.22, -0.42), "ads": Vector3(0.0, -0.15, -0.2)},
 	C.W.HEAVY: {"hip": Vector3(0.22, -0.27, -0.46), "ads": Vector3(0.0, -0.205, -0.32)},
-	C.W.MINIGUN: {"hip": Vector3(0.26, -0.3, -0.46), "ads": Vector3(0.12, -0.27, -0.42)},
+	C.W.MINIGUN: {"hip": Vector3(0.26, -0.3, -0.46), "ads": Vector3(0.21, -0.31, -0.36)},
 	C.W.SMG: {"hip": Vector3(0.2, -0.21, -0.46), "ads": Vector3(0.0, -0.145, -0.3)},
 	C.W.MECH_GOLEM: {"hip": Vector3(0.42, -0.36, -0.7), "ads": Vector3(0.3, -0.34, -0.7)},
 	C.W.MECH_GOLIAT: {"hip": Vector3(0.42, -0.36, -0.7), "ads": Vector3(0.3, -0.34, -0.7)},
@@ -373,9 +373,13 @@ func _build_arms() -> void:
 			_glove(arm_r, Vector3(0, 0.0, 0), Vector3(0, 0, 0))
 			arm_l = Node3D.new()
 			holder.add_child(arm_l)
-		C.W.HEAVY, C.W.MINIGUN:
+		C.W.HEAVY:
 			arm_r = build.call(Vector3(0, -0.08, 0.06), Vector3(0.12, -0.34, 0.4), false, right_grip)
 			arm_l = build.call(Vector3(0, -0.06, -0.42), Vector3(-0.3, -0.34, 0.1), true, left_grip)
+		C.W.MINIGUN:
+			# The left hand holds the upright handle under the collar.
+			arm_r = build.call(Vector3(0, -0.08, 0.06), Vector3(0.12, -0.34, 0.4), false, right_grip)
+			arm_l = build.call(Vector3(0, -0.06, -0.376), Vector3(-0.3, -0.36, 0.12), true, Vector3(0.28, 0, 0))
 		_:
 			arm_r = build.call(Vector3(0, -0.07, 0.05), Vector3(0.1, -0.32, 0.42), false, right_grip)
 			arm_l = build.call(Vector3(0, -0.03, -0.34), Vector3(-0.3, -0.32, 0.12), true, left_grip)

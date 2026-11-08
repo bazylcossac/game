@@ -1,9 +1,11 @@
 extends Node
 ## `--test=view-shots --out=<dir>`, windowed: guns as the player holds them, at the hip and aimed,
-## for both sides. `--only=word` keeps the shots whose name contains it.
+## for both sides. `--only=word` keeps the shots whose name contains it, `--map=id` picks the map.
 
 const GUNS := [
 	[0, 0, "mech", {}], [0, 0, "karabinek", {}], [1, 2, "dzialko", {}], [0, 2, "karabin", {}], [1, 1, "promieniowy", {}], [0, 0, "wyrzutnia", {"ordnance": "rockets"}], [1, 0, "wyrzutnia_imperium", {"ordnance": "rockets"}], [1, 0, "szturmowy", {}], [0, 5, "minigun", {}], [1, 5, "droid_inzynier", {}],
+	[0, 0, "kolimator", {"parts_p": ["reddot"]}], [0, 0, "holo", {"parts_p": ["holo"]}], [1, 0, "kolimator_imperium", {"parts_p": ["reddot"]}],
+	[0, 0, "pistolet", {"slot": 1}], [1, 0, "pistolet_imperium", {"slot": 1}],
 ]
 
 var out_dir := ""
@@ -29,7 +31,7 @@ func _ready() -> void:
 
 func _gun(team: int, class_id: int, label: String, kit: Dictionary) -> void:
 	Settings.side = team
-	Net.start_offline(Modes.normalize({"mode": "pvp", "map": "rynek", "difficulty": 0, "bots_per_team": 0}))
+	Net.start_offline(Modes.normalize({"mode": "pvp", "map": Settings.arg("map", "rynek"), "difficulty": 0, "bots_per_team": 0}))
 	while Net.world == null or Net.world.local == null:
 		await get_tree().process_frame
 	var w := Net.world
@@ -54,6 +56,9 @@ func _gun(team: int, class_id: int, label: String, kit: Dictionary) -> void:
 		var at := s.global_position + Basis(Vector3.UP, s.yaw) * Vector3(1.5, 0, -13)
 		w.on_vehicle(999, 1, at, 0.6, 800.0, 0)
 		w.controller.call("_switch", 3)
+		await _wait(0.9)
+	if kit.has("slot"):
+		w.controller.call("_switch", int(kit["slot"]))
 		await _wait(0.9)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	await _shot("%s_biodro" % label)

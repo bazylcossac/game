@@ -26,6 +26,8 @@ var bloom := 0.0
 var scoped := false
 var thermal := false
 var _spin := 0.0
+## The sprint key was still held when stamina ran out.
+var _sprint_spent := false
 ## Looking through a sight with the rocket launcher's frame round it, with or without thermal.
 var sighted := false
 var launcher_heat := true
@@ -202,7 +204,13 @@ func _physics_process(delta: float) -> void:
 	if s.wish.length_squared() > 1.0:
 		s.wish = s.wish.normalized()
 	var firing := Input.is_action_pressed("fire")
-	s.want_sprint = Input.is_action_pressed("sprint") and input.y < -0.1 and not firing
+	# Run dry and the sprint key does nothing more until it is let go: holding it on does not
+	# keep trying to run, so the legs walk steadily instead of lurching every time a little comes back.
+	if s.exhausted and Input.is_action_pressed("sprint"):
+		_sprint_spent = true
+	elif not Input.is_action_pressed("sprint"):
+		_sprint_spent = false
+	s.want_sprint = Input.is_action_pressed("sprint") and input.y < -0.1 and not firing and not _sprint_spent
 	s.want_crouch = Input.is_action_pressed("crouch")
 	if Input.is_action_just_pressed("prone"):
 		s.want_prone = not s.want_prone
@@ -352,7 +360,8 @@ func _try_attack() -> void:
 	# A minigun has to spin up first. While the trigger is held it stays up to speed.
 	var spin: float = w.get("spin", 0.0)
 	if spin > 0.0:
-		_spin = move_toward(_spin, 1.0 if wants else 0.0, get_physics_process_delta_time() / spin)
+		# Bracing it with the right button spins the barrels up too, ready to fire at once.
+		_spin = move_toward(_spin, 1.0 if wants or s.aiming else 0.0, get_physics_process_delta_time() / spin)
 		vm.barrel_speed = _spin
 		if _spin < 1.0:
 			return

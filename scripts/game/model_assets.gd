@@ -82,6 +82,9 @@ static func _material(mat: StandardMaterial3D, team: int, body: bool) -> Materia
 	var key := mat.resource_name
 	if key.begins_with("EnergyIndicator"):
 		return Mats.glow(C.TEAM_COLORS[team], 1.2)
+	# Night-sight beads: bright enough to find the sight on a dark street.
+	if key.begins_with("SightDot"):
+		return Mats.glow(Color(0.42, 1.0, 0.5), 2.2)
 	if not body:
 		return _gun_finish(mat)
 	return _body_finish(key.get_slice(".", 0), team, mat)

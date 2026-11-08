@@ -66,8 +66,8 @@ const WEAPONS := {
 		"name": "Minigun laserowy", "short": "MINIGUN", "melee": false, "auto": true,
 		"damage": 15.0, "head_mult": 1.4, "rate": 0.058, "mag": 150, "reserve": 300, "reload": 5.2,
 		"spread_hip": 2.9, "spread_ads": 1.1, "spread_move": 1.9, "recoil": 0.75, "range": 105.0,
-		"falloff_start": 35.0, "falloff_min": 0.55, "ads_fov": 0.85, "sound": "laser_minigun", "beam": 0.06,
-		"move_mult": 0.82, "shake": 0.08, "spin": 0.55,
+		"falloff_start": 35.0, "falloff_min": 0.55, "ads_fov": 1.0, "sound": "laser_minigun", "beam": 0.06,
+		"move_mult": 0.82, "shake": 0.08, "spin": 0.55, "no_sights": true,
 	},
 	W.SWORD: {
 		"name": "Miecz energetyczny", "short": "MIECZ", "melee": true, "auto": true,

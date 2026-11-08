@@ -118,8 +118,37 @@ func _ready() -> void:
 	me.stamina = me.stamina_max * 0.35
 	me.simulate_move(0.016)
 	_check("a third of it is", me.sprinting and not me.exhausted)
+	# Draining it for real: sprint stops once and stays off, with no flicker near the bottom.
+	me.stamina = 0.5
+	var flips := 0
+	var was := true
+	for i in 120:
+		me.simulate_move(1.0 / 60.0)
+		if me.sprinting != was:
+			flips += 1
+		was = me.sprinting
+	_check("running dry stops the sprint once, without flicker (%d changes)" % flips, flips == 1 and me.exhausted)
 	me.want_sprint = false
 	me.wish = Vector3.ZERO
+	# The key held on through running dry does not start a new sprint when stamina is back.
+	me.refill()
+	me.stamina = 0.3
+	me.exhausted = false
+	Input.action_press("move_forward")
+	Input.action_press("sprint")
+	await _seconds(0.8)
+	_check("the held key runs dry", me.exhausted and not me.sprinting)
+	me.stamina = me.stamina_max
+	await _frames(3)
+	_check("full again, the key still held does not sprint", not me.sprinting)
+	Input.action_release("sprint")
+	await _frames(2)
+	Input.action_press("sprint")
+	await _frames(3)
+	_check("a fresh press does", me.sprinting)
+	Input.action_release("sprint")
+	Input.action_release("move_forward")
+	await _frames(2)
 
 	# ---- F cuts once and goes back to the gun
 	var c := w.controller

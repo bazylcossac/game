@@ -552,14 +552,18 @@ func simulate_move(delta: float) -> void:
 		return
 	var speed: float = C.WALK_SPEED * float(cd["speed"]) * float(weapon()["move_mult"])
 	# Without the lock the legs would stop and start on every scrap of stamina that came back.
-	if stamina <= 0.05:
+	# The lock is the only limit: a second, higher floor would leave a band where sprint
+	# switched off and on every tick, which is what made a tired soldier stutter.
+	if stamina <= 0.0:
 		exhausted = true
 	elif exhausted and stamina >= stamina_max * C.STAMINA_RECOVER:
 		exhausted = false
-	sprinting = want_sprint and not exhausted and not cd.get("no_sprint", false) and wish.length_squared() > 0.1 and stamina > 0.2 and not aiming and not blocking and not crouching and reload_t <= 0.0
+	sprinting = want_sprint and not exhausted and not cd.get("no_sprint", false) and wish.length_squared() > 0.1 and not aiming and not blocking and not crouching and reload_t <= 0.0
 	if sprinting:
 		speed = C.SPRINT_SPEED * float(cd["speed"]) * float(weapon()["move_mult"])
 		stamina = maxf(stamina - delta, 0.0)
+		if stamina <= 0.0:
+			exhausted = true
 	else:
 		stamina = minf(stamina + delta * 0.8, stamina_max)
 	if cd.get("no_crouch", false):

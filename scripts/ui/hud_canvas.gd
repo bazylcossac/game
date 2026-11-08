@@ -243,7 +243,7 @@ func _draw_crosshair(c: PlayerController) -> void:
 		if s.blocking:
 			draw_arc(center, 24.0, -2.4, -0.74, 24, UiKit.BLUE, 3.0, true)
 		return
-	if c.vm.ads > 0.8:
+	if c.vm.ads > 0.8 and not s.weapon().get("no_sights", false):
 		draw_circle(center, 2.6, Color(0, 0, 0, 0.55))
 		draw_circle(center, 1.7, col)
 		return

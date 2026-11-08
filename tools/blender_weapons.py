@@ -1,6 +1,6 @@
 """Builds every firearm, its attachments and the anti-tank round for the game.
 
-Run:  blender --background --factory-startup --python tools/blender_weapons.py [-- --preview DIR]
+Run:  blender --background --factory-startup --python tools/blender_weapons.py [-- --preview DIR] [--only minigun,attachments]
 
 Each gun is its own design, drawn from side outlines with real holes, rails and machined edges.
 The origin sits at the grip and forward is -Z. WeaponFactory relies on these fixed points:
@@ -27,11 +27,13 @@ PALETTE.update({
     POLY: ((0.035, 0.037, 0.036), 0.05, 0.68, 0), WOOD: ((0.2, 0.09, 0.04), 0, 0.46, 0),
     OLIVE: ((0.13, 0.135, 0.075), 0.3, 0.56, 0), BLACK: ((0.008, 0.009, 0.01), 0.1, 0.6, 0),
     CORE: ((0.08, 0.5, 0.7), 0.15, 0.32, 3.0), LENS: ((0.02, 0.04, 0.06), 0.5, 0.08, 0),
+    "SightDot": ((0.35, 1.0, 0.45), 0.0, 0.4, 4.0),
     "_Worn": ((1, 0, 1), 0, 1, 0), "SmokeGrey": ((0.7, 0.7, 0.72), 0.1, 0.6, 0), "WarningRed": ((0.6, 0.06, 0.03), 0.1, 0.5, 0),
 })
 BODY, CELL, SIGHT, STOCK, SPIN = "Body", "Cell", "IronSight", "ThirdPersonOnly", "Spin"
 LEATHERISH = WOOD
 RIFLE_BORE, PISTOL_BORE = 0.06, 0.08
+DOT = "SightDot"
 
 
 # ---------------------------------------------------------------- common parts
@@ -160,20 +162,42 @@ def straight_mag(z, y, length, depth, half, lean=0.0, ribs=2, mat=STEEL):
         profile(CELL, "Magazine rib", [(z - depth / 2 - q + 0.005, yy - 0.003), (z + depth / 2 - q - 0.005, yy - 0.003), (z + depth / 2 - q - 0.005, yy + 0.003), (z - depth / 2 - q + 0.005, yy + 0.003)], half + 0.0009, BLACK, 0.0002)
 
 
+def sight_dot(z, y, r, x=0.0, name="Sight dot"):
+    """A glowing bead facing the eye, so the sight still shows against a dark street."""
+    lathe(SIGHT, name, [(z + 0.0008, 0.0), (z + 0.0008, r), (z - 0.0008, r), (z - 0.0008, 0.0)], DOT, 12, y, x)
+
+
 def irons(rear_z, front_z, sight_y, base_y=0.1, front_base=None):
-    """Folding aperture at the rear, protected post at the front. Fitted optics remove these."""
+    """A thin ghost ring at the rear and a post with a glowing bead at the front. The ring's hole is
+    wide and the bead sits exactly on the sight line, so aiming hides nothing. Optics remove these."""
     b = base_y
-    h = sight_y - b
-    ring = [(rear_z - 0.011, b), (rear_z + 0.011, b), (rear_z + 0.006, b + h * 0.5, 0.004), (rear_z + 0.003, sight_y + 0.006, 0.002), (rear_z - 0.003, sight_y + 0.006, 0.002), (rear_z - 0.006, b + h * 0.5, 0.004)]
-    profile(SIGHT, "Rear sight", ring, 0.0085, STEEL, 0.0008)
-    profile(SIGHT, "Rear ear", [(rear_z - 0.005, sight_y - 0.012), (rear_z + 0.005, sight_y - 0.012), (rear_z + 0.005, sight_y + 0.012), (rear_z - 0.005, sight_y + 0.012)], 0.0022, BLACK, 0)
+    hole, ring = 0.0088, 0.0118
+    hollow(SIGHT, "Rear ring", [(rear_z + 0.0025, hole), (rear_z + 0.0025, ring), (rear_z - 0.0025, ring), (rear_z - 0.0025, hole)], EDGE, 24, sight_y)
+    stand = [(rear_z - 0.011, b), (rear_z + 0.011, b), (rear_z + 0.004, sight_y - ring + 0.0015, 0.002), (rear_z - 0.004, sight_y - ring + 0.0015, 0.002)]
+    profile(SIGHT, "Rear stand", stand, 0.0062, STEEL, 0.0006)
+    for side in (1, -1):
+        profile(SIGHT, "Rear ear", [(rear_z - 0.006, b), (rear_z + 0.006, b), (rear_z + 0.004, sight_y + 0.002, 0.002), (rear_z - 0.004, sight_y + 0.002, 0.002)], 0.0015, STEEL, 0.0003, x=side * 0.0142)
     fb = front_base if front_base is not None else b
-    tower = [(front_z - 0.014, fb), (front_z + 0.014, fb), (front_z + 0.006, sight_y - 0.006, 0.003), (front_z - 0.006, sight_y - 0.006, 0.003)]
+    tower = [(front_z - 0.014, fb), (front_z + 0.014, fb), (front_z + 0.006, sight_y - 0.012, 0.003), (front_z - 0.006, sight_y - 0.012, 0.003)]
     profile(SIGHT, "Front tower", tower, 0.0065, STEEL, 0.0008)
     for side in (1, -1):
-        x = side * 0.0088
-        profile(SIGHT, "Post wing", [(front_z - 0.008, sight_y - 0.016), (front_z + 0.008, sight_y - 0.016), (front_z + 0.006, sight_y + 0.008, 0.002), (front_z - 0.006, sight_y + 0.008, 0.002)], 0.0016, STEEL, 0.0004, x=x)
-    profile(SIGHT, "Front post", [(front_z - 0.0016, sight_y - 0.01), (front_z + 0.0016, sight_y - 0.01), (front_z + 0.0016, sight_y), (front_z - 0.0016, sight_y)], 0.0014, EDGE, 0)
+        profile(SIGHT, "Post wing", [(front_z - 0.008, sight_y - 0.016), (front_z + 0.008, sight_y - 0.016), (front_z + 0.006, sight_y + 0.002, 0.002), (front_z - 0.006, sight_y + 0.002, 0.002)], 0.0014, STEEL, 0.0003, x=side * 0.0105)
+    profile(SIGHT, "Front post", [(front_z - 0.0016, sight_y - 0.013), (front_z + 0.0016, sight_y - 0.013), (front_z + 0.0016, sight_y), (front_z - 0.0016, sight_y)], 0.0014, EDGE, 0)
+    sight_dot(front_z + 0.0026, sight_y, 0.0034)
+
+
+def pistol_sights(rear_z, front_z, base, front_base=None, y=0.112, mat=STEEL):
+    """Three-dot night sights: a notch with a bead either side, and the front bead on the sight line."""
+    top = y + 0.0045
+    gap, blade = 0.0042, 0.0034
+    profile(SIGHT, "Rear base", [(rear_z - 0.012, base), (rear_z + 0.012, base), (rear_z + 0.012, y - 0.003, 0.001), (rear_z - 0.012, y - 0.003, 0.001)], gap + 2 * blade, mat, 0.0005)
+    for side in (1, -1):
+        x = side * (gap + blade)
+        profile(SIGHT, "Rear blade", [(rear_z - 0.012, y - 0.004), (rear_z + 0.012, y - 0.004), (rear_z + 0.012, top, 0.001), (rear_z - 0.012, top, 0.001)], blade, mat, 0.0005, x=x)
+        sight_dot(rear_z + 0.0129, y, 0.0019, x, "Rear dot")
+    fb = front_base if front_base is not None else base
+    profile(SIGHT, "Front sight", [(front_z - 0.009, fb), (front_z + 0.009, fb), (front_z + 0.009, y + 0.0035, 0.001), (front_z - 0.009, y + 0.0035, 0.001)], 0.0026, mat, 0.0004)
+    sight_dot(front_z + 0.0098, y, 0.0024)
 
 
 def scope_on_rail(z, y, length=0.28, r=0.024):
@@ -564,8 +588,7 @@ def pistol():
     crown(-0.272, 0.0105, PISTOL_BORE)
     profile(BODY, "Hammer", [(0.05, 0.1), (0.066, 0.1), (0.07, 0.112, 0.003), (0.06, 0.116, 0.003), (0.05, 0.106)], 0.0042, EDGE, 0.0007)
     # Sights sit right on the slide, so their line is the pistol sight line.
-    profile(SIGHT, "Rear sight", [(0.036, 0.11), (0.012, 0.11), (0.014, 0.118, 0.002), (0.034, 0.118, 0.002)], 0.0115, BLACK, 0.0007)
-    profile(SIGHT, "Front sight", [(-0.178, 0.11), (-0.198, 0.11), (-0.196, 0.117, 0.002), (-0.182, 0.117, 0.002)], 0.003, BLACK, 0.0004)
+    pistol_sights(0.024, -0.188, 0.104)
     muzzle_mark(-0.272, PISTOL_BORE)
 
 
@@ -581,8 +604,7 @@ def mpistol():
     slide_serrations(0.05, 0.014, 6, 0.066, 0.102, 0.0145)
     profile(BODY, "Fore grip", [(-0.17, 0.038), (-0.135, 0.038), (-0.122, -0.056, 0.008), (-0.158, -0.056, 0.008)], 0.0115, POLY, 0.0034, (), 2)
     straight_mag(0.05, -0.024, 0.2, 0.04, 0.0108, -0.042, 3, STEEL)
-    profile(SIGHT, "Rear sight", [(0.036, 0.106), (0.012, 0.106), (0.014, 0.117, 0.002), (0.034, 0.117, 0.002)], 0.0115, BLACK, 0.0007)
-    profile(SIGHT, "Front sight", [(-0.178, 0.106), (-0.198, 0.106), (-0.196, 0.117, 0.002), (-0.182, 0.117, 0.002)], 0.003, BLACK, 0.0004)
+    pistol_sights(0.024, -0.188, 0.102)
     muzzle_mark(-0.3, PISTOL_BORE)
 
 
@@ -629,8 +651,7 @@ def revolver():
         profile(BODY, "Grip groove", [(0.02, y), (0.078, y), (0.078, y + 0.003), (0.02, y + 0.003)], 0.0174, BLACK, 0)
     # A power cell in the base of the grip, as on every other sidearm.
     straight_mag(0.058, -0.1, 0.022, 0.054, 0.0128, 0.0, 0, STEEL)
-    profile(SIGHT, "Rear sight", [(0.02, 0.108), (-0.008, 0.108), (-0.006, 0.116, 0.002), (0.018, 0.116, 0.002)], 0.0095, BLACK, 0.0007)
-    profile(SIGHT, "Front sight", [(-0.29, 0.106), (-0.31, 0.106), (-0.308, 0.116, 0.003), (-0.296, 0.116, 0.002)], 0.0028, STEEL, 0.0004)
+    pistol_sights(0.006, -0.3, 0.104, 0.1)
     muzzle_mark(-0.32, PISTOL_BORE)
 
 
@@ -648,31 +669,66 @@ def thermal_sight(metal, lens):
 
 
 def minigun():
-    """Six barrels round a motor, a belt from a box on the side, carried at the hip."""
+    """A hand-held rotary laser: six barrels turn round a spindle in front of a round motor drum,
+    fed by a power pack on the left. It has no sights or rail: it is pointed from the hip."""
     y = 0.07
     grip()
     trigger_group()
-    receiver = [(0.1, 0.02), (0.11, 0.14, 0.012), (0.02, 0.165, 0.01), (-0.2, 0.165, 0.01), (-0.21, -0.02, 0.012), (-0.1, -0.03, 0.012), (0.0, 0.0)]
-    profile(BODY, "Receiver", receiver, 0.05, STEEL, 0.0036)
-    rail(0.02, -0.19, 0.17, 0.0115)
-    lathe(BODY, "Motor housing", [(-0.2, 0.082), (-0.21, 0.09), (-0.3, 0.09), (-0.31, 0.074)], BLACK, 20, y, bevel=0.002)
-    tube(BODY, "Handle", [(0, 0.16, 0.0), (0.0, 0.215, -0.03), (0.0, 0.215, -0.16), (0, 0.16, -0.19)], 0.0095, POLY, 8)
+    # The frame under the drum carries the grip, the trigger and the pack.
+    profile(BODY, "Lower frame", [(0.08, 0.034), (-0.2, 0.034), (-0.2, 0.012, 0.006), (-0.14, -0.004, 0.008), (-0.01, -0.006, 0.006), (0.075, 0.004, 0.01)], 0.03, STEEL, 0.0028)
+    # Motor drum at the back, finned for cooling, with a lamp in its end cap.
+    turned(BODY, "Motor drum", [(0.19, 0.03), (0.188, 0.046), (0.18, 0.056), (0.166, 0.06), (0.04, 0.06), (0.03, 0.064), (-0.06, 0.064)], OLIVE, 28, 0.0, y, 2.0, 0.0012)
+    for i in range(6):
+        z = 0.148 - i * 0.019
+        lathe(BODY, "Cooling fin", [(z + 0.004, 0.06), (z + 0.0028, 0.0685), (z - 0.0028, 0.0685), (z - 0.004, 0.06)], STEEL, 28, y)
+    lathe(BODY, "End cap", [(0.1925, 0.0), (0.1925, 0.026), (0.189, 0.032)], EDGE, 20, y)
+    lathe(BODY, "Motor lamp", [(0.1935, 0.0), (0.1935, 0.011)], CORE, 12, y)
+    for k in range(6):
+        a = math.tau * k / 6
+        lathe(BODY, "Cap bolt", [(0.194, 0.0), (0.194, 0.0032), (0.1925, 0.0036)], EDGE, 8, y + math.sin(a) * 0.02, math.cos(a) * 0.02)
+    lathe(BODY, "Joint band", [(-0.05, 0.0675), (-0.064, 0.0675)], STEEL, 28, y, bevel=0.0006)
+    # The gearbox: cast, eight-sided, bolted on, the barrels' bearing in its face.
+    section(BODY, "Gearbox", [(-0.058, 0.066, 0.066, 0.022), (-0.2, 0.066, 0.066, 0.022), (-0.214, 0.058, 0.058, 0.02)], OLIVE, 0.004, 0.0, y)
+    pins([(-0.08, y + 0.04), (-0.18, y + 0.04), (-0.08, y - 0.04), (-0.18, y - 0.04)], 0.066, 0.0042)
+    profile(BODY, "Gearbox plate", [(-0.095, y - 0.026), (-0.165, y - 0.026), (-0.165, y + 0.026, 0.006), (-0.095, y + 0.026, 0.006)], 0.0668, STEEL, 0.0008)
+    lathe(BODY, "Bearing", [(-0.212, 0.052), (-0.232, 0.052), (-0.238, 0.046)], STEEL, 24, y, bevel=0.0008)
     # The barrels turn as one, so they are a part of their own.
+    lathe(SPIN, "Barrel hub", [(-0.232, 0.03), (-0.236, 0.054), (-0.27, 0.054), (-0.276, 0.046), (-0.296, 0.046)], EDGE, 24, y, bevel=0.0008)
+    lathe(SPIN, "Spindle", [(-0.29, 0.016), (-0.85, 0.016)], BLACK, 12, y)
     for i in range(6):
         a = math.tau * i / 6
-        bx, by = math.cos(a) * 0.04, y + math.sin(a) * 0.04
-        lathe(SPIN, f"Barrel {i}", [(-0.3, 0.0125), (-0.9, 0.0125)], STEEL, 10, by, bx)
-    for z in (-0.46, -0.66, -0.84):
-        lathe(SPIN, "Barrel clamp", [(z + 0.012, 0.058), (z - 0.012, 0.058)], BLACK, 16, y)
-    lathe(SPIN, "Barrel hub", [(-0.3, 0.03), (-0.31, 0.058), (-0.34, 0.058), (-0.35, 0.02)], EDGE, 16, y)
-    # The ammunition box and its belt: the part WeaponFactory stretches for larger cells.
-    box = [(-0.02, -0.17), (-0.2, -0.17), (-0.2, 0.03, 0.008), (-0.02, 0.03, 0.008)]
-    profile(CELL, "Ammunition box", box, 0.07, OLIVE, 0.0034, x=-0.12)
-    profile(CELL, "Lid", [(-0.014, 0.03), (-0.206, 0.03), (-0.206, 0.05, 0.005), (-0.014, 0.05, 0.005)], 0.073, STEEL, 0.002, x=-0.12)
-    tube(CELL, "Feed chute", [(-0.12, 0.05, -0.1), (-0.07, 0.1, -0.1), (-0.04, 0.12, -0.1)], 0.018, BLACK, 8)
-    profile(STOCK, "Stock", [(0.1, 0.13), (0.26, 0.11, 0.012), (0.29, 0.11), (0.296, -0.05, 0.012), (0.24, -0.056, 0.012), (0.18, 0.0, 0.02), (0.1, 0.02)], 0.024, POLY, 0.004)
+        bx, by = math.cos(a) * 0.034, y + math.sin(a) * 0.034
+        lathe(SPIN, f"Barrel {i}", [(-0.28, 0.0115), (-0.862, 0.0115), (-0.868, 0.0104)], STEEL, 12, by, bx)
+        lathe(SPIN, "Emitter", [(-0.866, 0.0112), (-0.874, 0.0122), (-0.902, 0.0122), (-0.906, 0.0108)], EDGE, 12, by, bx, 0.0005)
+        lathe(SPIN, "Emitter glow", [(-0.879, 0.0126), (-0.889, 0.0126)], CORE, 12, by, bx)
+        lathe(SPIN, "Bore", [(-0.9062, 0.0062), (-0.9066, 0.0)], BLACK, 10, by, bx)
+    for z, w in ((-0.47, 0.012), (-0.66, 0.012), (-0.84, 0.018)):
+        lathe(SPIN, "Barrel clamp", [(z + w, 0.05), (z + w - 0.003, 0.054), (z - w + 0.003, 0.054), (z - w, 0.05)], STEEL, 24, y, bevel=0.0006)
+    # A fixed collar round the turning barrels, and the handle the left hand steers by.
+    hollow(BODY, "Collar", [(-0.355, 0.06), (-0.355, 0.0675), (-0.36, 0.07), (-0.395, 0.07), (-0.4, 0.0675), (-0.4, 0.06)], STEEL, 28, y)
+    profile(BODY, "Fore handle", [(-0.362, 0.012), (-0.393, 0.012), (-0.396, -0.03, 0.006), (-0.39, -0.104, 0.01), (-0.36, -0.104, 0.01), (-0.355, -0.03, 0.006)], 0.0165, POLY, 0.005, (), 2)
+    for i in range(4):
+        yy = -0.032 - i * 0.017
+        profile(BODY, "Handle ridge", [(-0.357, yy), (-0.395, yy), (-0.395, yy + 0.004), (-0.357, yy + 0.004)], 0.0171, BLACK, 0)
+    # Heat shield over the barrels, from the gearbox to past the collar, with cooling ribs.
+    profile(BODY, "Heat shield", [(-0.2, y + 0.058), (-0.6, y + 0.058), (-0.62, y + 0.062, 0.004), (-0.6, y + 0.067), (-0.2, y + 0.067)], 0.024, STEEL, 0.0012)
+    for z in (-0.26, -0.3, -0.44, -0.48, -0.52, -0.56):
+        profile(BODY, "Shield rib", [(z, y + 0.066), (z - 0.012, y + 0.066), (z - 0.012, y + 0.072, 0.002), (z, y + 0.072, 0.002)], 0.0215, STEEL, 0.0006)
+    # Carry handle over the drum and gearbox.
+    tube(BODY, "Carry handle", [(0, y + 0.062, 0.07), (0, y + 0.1, 0.05), (0, y + 0.112, 0.0), (0, y + 0.112, -0.12), (0, y + 0.1, -0.16), (0, y + 0.064, -0.18)], 0.0085, POLY, 10)
+    for z in (0.064, -0.172):
+        profile(BODY, "Handle foot", [(z + 0.016, y + 0.056), (z - 0.016, y + 0.056), (z - 0.01, y + 0.076, 0.004), (z + 0.01, y + 0.076, 0.004)], 0.013, STEEL, 0.001)
+    # The power pack on the left: the part WeaponFactory stretches for larger cells.
+    px = -0.112
+    profile(CELL, "Pack bracket", [(-0.03, 0.03), (-0.18, 0.03), (-0.18, 0.004), (-0.03, 0.004)], 0.026, STEEL, 0.001, x=-0.056)
+    section(CELL, "Power pack", [(-0.004, 0.034, 0.062, 0.012), (-0.206, 0.034, 0.062, 0.012)], OLIVE, 0.003, px, 0.0)
+    for z in (-0.05, -0.105, -0.16):
+        profile(CELL, "Pack rib", [(z, -0.063), (z - 0.009, -0.063), (z - 0.009, 0.063), (z, 0.063)], 0.0355, STEEL, 0.0005, x=px)
+    profile(CELL, "Charge window", [(-0.016, 0.018), (-0.044, 0.018), (-0.044, 0.044, 0.003), (-0.016, 0.044, 0.003)], 0.0006, CORE, 0, x=px - 0.0345)
+    tube(CELL, "Feed cable", [(px + 0.01, 0.062, -0.12), (px + 0.014, 0.1, -0.108), (-0.06, 0.124, -0.09), (-0.03, 0.11, -0.08)], 0.011, BLACK, 8)
+    profile(STOCK, "Stock", [(0.18, 0.1), (0.26, 0.11, 0.012), (0.29, 0.11), (0.296, -0.05, 0.012), (0.24, -0.056, 0.012), (0.18, 0.0, 0.02), (0.14, 0.02)], 0.024, POLY, 0.004)
     profile(STOCK, "Butt pad", [(0.294, 0.112, 0.008), (0.314, 0.112, 0.008), (0.316, -0.054, 0.008), (0.298, -0.054, 0.008)], 0.026, BLACK, 0.003, (), 2)
-    muzzle_mark(-0.9, y)
+    muzzle_mark(-0.906, y)
 
 
 def at_launcher():
@@ -944,8 +1000,7 @@ def e_sidearm(muzzle, clip_length, rib_from, fore_grip=False):
     e_clip(0.058, -0.03, clip_length, 0.034, 0.0092)
     if fore_grip:
         profile(BODY, "Fore grip", [(-0.17, 0.056), (-0.14, 0.056), (-0.126, -0.05, 0.006), (-0.156, -0.05, 0.006)], 0.0095, GUNMETAL, 0.0024)
-    profile(SIGHT, "Rear sight", [(0.036, 0.1), (0.012, 0.1), (0.014, 0.116, 0.002), (0.034, 0.116, 0.002)], 0.0095, BLACK, 0.0007)
-    profile(SIGHT, "Front sight", [(-0.176, 0.1), (-0.194, 0.1), (-0.192, 0.116, 0.002), (-0.18, 0.116, 0.002)], 0.0028, EDGE, 0.0004)
+    pistol_sights(0.024, -0.185, 0.098, mat=GUNMETAL)
     muzzle_mark(-muzzle, y)
 
 
@@ -1020,7 +1075,7 @@ def reddot():
     part = "Optic_reddot"
     base = -0.05
     rail_clamp(part, base, 0.036)
-    hollow(part, "Tube", [(0.03, 0.0215), (0.03, 0.0258), (0.026, 0.0272), (-0.026, 0.0272), (-0.03, 0.0258), (-0.03, 0.0215)], STEEL, 22)
+    hollow(part, "Tube", [(0.03, 0.0238), (0.03, 0.0262), (0.027, 0.0274), (-0.027, 0.0274), (-0.03, 0.0262), (-0.03, 0.0238)], EDGE, 28)
     profile(part, "Riser", [(-0.034, base + 0.012), (0.034, base + 0.012), (0.03, -0.018, 0.004), (-0.03, -0.018, 0.004)], 0.0155, STEEL, 0.0014)
     circle = [(0.0065 * math.cos(math.tau * k / 12), -0.012 + 0.0065 * math.sin(math.tau * k / 12)) for k in range(12)]
     profile(part, "Dial", circle, 0.0065, EDGE, 0.0007, x=0.0315)
@@ -1370,13 +1425,18 @@ def show_paint():
 def main():
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete(use_global=False)
+    args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    only = args[args.index("--only") + 1].split(",") if "--only" in args else []
     roots = []
     for name, build in GUNS + EMPIRE_GUNS:
+        if only and name not in only:
+            continue
         build()
         roots.append(finish_gun(name))
-    roots.append(finish_attachments())
-    bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE / "weapons.blend"))
-    args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    if not only or "attachments" in only:
+        roots.append(finish_attachments())
+    if not only:
+        bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE / "weapons.blend"))
     if "--preview" in args:
         preview(args[args.index("--preview") + 1], roots)
     print("[weapons] done", flush=True)

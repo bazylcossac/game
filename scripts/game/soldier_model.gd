@@ -466,7 +466,7 @@ func _pose_for_weapon() -> void:
 			_aim_pos = Vector3(0.1, 0.27, -0.2)
 			_low_pos = Vector3(0.1, 0.2, -0.18)
 			_grip_r = Vector3(0, -0.07, 0.05)
-			_grip_l = Vector3(0, -0.04, -0.22)
+			_grip_l = Vector3(0, -0.06, -0.376) if weapon_id == C.W.MINIGUN else Vector3(0, -0.04, -0.22)
 		_:
 			_aim_pos = Vector3(0.06, 0.35, -0.17)
 			_low_pos = Vector3(0.05, 0.21, -0.18)

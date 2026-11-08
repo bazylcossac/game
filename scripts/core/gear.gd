@@ -39,7 +39,8 @@ const SIDEARM_SLOTS := ["muzzle", "cell"]
 const SCOPED_SLOTS := ["muzzle", "grip", "cell"]
 const WEAPON_SLOTS := {
 	C.W.CARBINE: RIFLE_SLOTS, C.W.ASSAULT: RIFLE_SLOTS, C.W.RIFLE: RIFLE_SLOTS, C.W.HEAVY: RIFLE_SLOTS,
-	C.W.MINIGUN: ["optic", "grip", "cell"],
+	# Pointed from the hip: no sights to fit, and its own handle for the left hand.
+	C.W.MINIGUN: ["cell"],
 	C.W.SMG: RIFLE_SLOTS, C.W.SMG2: RIFLE_SLOTS, C.W.SCATTER: ["optic", "grip", "cell"],
 	C.W.SNIPER: SCOPED_SLOTS, C.W.SILENT: RIFLE_SLOTS, C.W.RAIL: ["grip", "cell"],
 	C.W.PISTOL: SIDEARM_SLOTS, C.W.REVOLVER: SIDEARM_SLOTS, C.W.MPISTOL: SIDEARM_SLOTS,
