@@ -5,6 +5,9 @@ extends Node3D
 
 signal leave_requested
 
+## Bytes per soldier in a snapshot.
+const SNAP_RECORD := 25
+
 var cfg := {}
 ## The row of `Modes.LIST` this match plays by.
 var mode := {}
@@ -356,7 +359,7 @@ func on_roster(list: Array) -> void:
 func build_snapshot() -> PackedByteArray:
 	var count := soldiers.size()
 	var buf := PackedByteArray()
-	buf.resize(8 + 4 + 1 + flags.size() * 2 + 1 + count * 24)
+	buf.resize(8 + 4 + 1 + flags.size() * 2 + 1 + count * SNAP_RECORD)
 	buf.encode_double(0, Net.server_time())
 	buf.encode_u16(8, tickets[0])
 	buf.encode_u16(10, tickets[1])
@@ -379,9 +382,12 @@ func build_snapshot() -> PackedByteArray:
 		buf.encode_u16(o + 18, int(clampf(s.hp, 0.0, 65535.0)))
 		var flags_now := s.state_flags()
 		buf.encode_u8(o + 20, flags_now & 255)
-		buf.encode_u8(o + 21, s.slot | (C.SLOT_PRONE if flags_now & C.F_PRONE != 0 else 0))
+		var extra := (C.SLOT_PRONE if flags_now & C.F_PRONE != 0 else 0) | (C.SLOT_LEAN_L if flags_now & C.F_LEAN_L != 0 else 0) | (C.SLOT_LEAN_R if flags_now & C.F_LEAN_R != 0 else 0)
+		buf.encode_u8(o + 21, s.slot | extra)
 		buf.encode_u16(o + 22, int(fposmod(s.hull_yaw, TAU) / TAU * 65535.0))
-		o += 24
+		# The shield's charge, so its owner's HUD and everyone's picture of it stay true.
+		buf.encode_u8(o + 24, int(clampf(s.shield / C.SHIELD_HP, 0.0, 1.0) * 255.0))
+		o += SNAP_RECORD
 	return buf
 
 
@@ -409,6 +415,15 @@ func apply_snapshot(buf: PackedByteArray) -> void:
 			var slot_byte := buf.decode_u8(o + 21)
 			if slot_byte & C.SLOT_PRONE != 0:
 				state |= C.F_PRONE
+			if slot_byte & C.SLOT_LEAN_L != 0:
+				state |= C.F_LEAN_L
+			if slot_byte & C.SLOT_LEAN_R != 0:
+				state |= C.F_LEAN_R
+			if not Net.is_server():
+				s.shield = buf.decode_u8(o + 24) / 255.0 * C.SHIELD_HP
+				# Broken until full again: the break itself arrives as its own event.
+				if s.shield >= C.SHIELD_HP - 0.5:
+					s.shield_ready = true
 			if s.control == Soldier.Driver.LOCAL:
 				s.hp = hp
 				s.protected_t = 0.5 if state & C.F_PROTECTED != 0 else 0.0
@@ -418,12 +433,12 @@ func apply_snapshot(buf: PackedByteArray) -> void:
 				s.push_snapshot(t, pos, buf.decode_u16(o + 14) / 65535.0 * TAU, buf.decode_s16(o + 16) / 10000.0, buf.decode_u16(o + 22) / 65535.0 * TAU)
 				s.apply_flags(state)
 				s.protected_t = 0.5 if state & C.F_PROTECTED != 0 else 0.0
-				var slot := slot_byte & ~C.SLOT_PRONE
+				var slot := slot_byte & ~(C.SLOT_PRONE | C.SLOT_LEAN_L | C.SLOT_LEAN_R)
 				if slot != s.slot and slot < s.loadout.size():
 					s.slot = slot
 					if s.model:
 						s.model.set_weapon(s.weapon_id(), s.weapon_parts())
-		o += 24
+		o += SNAP_RECORD
 
 
 # ---------------------------------------------------------------- events
@@ -583,6 +598,29 @@ func on_swing(sid: int, exclude_sid: int) -> void:
 	if s and s.model:
 		s.model.play_swing()
 		Sfx.play_at("sword_swing", s.global_position + Vector3.UP, -2.0, randf_range(0.9, 1.1))
+
+
+## A shield broke under fire. Its owner drops back to the main gun.
+func on_shield_broken(sid: int) -> void:
+	var s: Soldier = soldiers.get(sid)
+	if s == null:
+		return
+	s.shield_ready = false
+	s.shield = 0.0
+	if s == local and controller:
+		controller.call("_switch", 0)
+	if fx:
+		var at := s.global_position + Vector3.UP * 1.1
+		fx.sparks(at, Vector3.UP, C.TEAM_COLORS[s.team], 30)
+		fx.flash(at, C.TEAM_COLORS[s.team], 5.0, 6.0, 0.12)
+		Sfx.play_at("sword_off", at, 4.0, 0.7)
+
+
+## A shot stopped by a shield: a ripple of sparks where it struck.
+func on_shield_hit(pos: Vector3) -> void:
+	if fx:
+		fx.sparks(pos, Vector3.UP, Color(0.6, 0.85, 1.0), 8)
+		Sfx.play_at("deflect", pos, -4.0, randf_range(0.9, 1.15))
 
 
 func on_clash(pos: Vector3) -> void:

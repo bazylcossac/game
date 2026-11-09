@@ -41,7 +41,7 @@ const KEYS := {
 	"move_forward": [KEY_W], "move_back": [KEY_S], "move_left": [KEY_A], "move_right": [KEY_D],
 	"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "crouch": [KEY_CTRL, KEY_C], "reload": [KEY_R],
 	"grenade": [KEY_G], "grenade_next": [KEY_H], "slot1": [KEY_1], "slot2": [KEY_2], "slot3": [KEY_3], "slot4": [KEY_4],
-	"melee": [KEY_F], "super": [KEY_B], "use": [KEY_E], "seat": [KEY_X], "build_menu": [KEY_V], "build": [KEY_T], "artillery": [KEY_Y], "prone": [KEY_Z], "thermal": [KEY_N], "map": [KEY_M], "scoreboard": [KEY_TAB], "pause": [KEY_ESCAPE], "admin": [KEY_F1],
+	"melee": [KEY_F], "super": [KEY_B], "use": [KEY_E], "seat": [KEY_X], "lean_left": [KEY_Q], "lean_right": [KEY_E], "build_menu": [KEY_V], "build": [KEY_T], "artillery": [KEY_Y], "prone": [KEY_Z], "thermal": [KEY_N], "map": [KEY_M], "scoreboard": [KEY_TAB], "pause": [KEY_ESCAPE], "admin": [KEY_F1],
 }
 
 

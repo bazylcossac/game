@@ -311,6 +311,11 @@ func _draw_vitals(s: Soldier) -> void:
 	draw_rect(Rect2(bar_x, y + 12, bar_w * frac, 9), col)
 	draw_rect(Rect2(bar_x, y + 28, bar_w, 4), Color(1, 1, 1, 0.08))
 	draw_rect(Rect2(bar_x, y + 28, bar_w * (s.stamina / s.stamina_max), 4), UiKit.RED if s.exhausted else UiKit.BRASS)
+	if s.has_shield():
+		draw_rect(Rect2(bar_x, y + 36, bar_w, 4), Color(1, 1, 1, 0.08))
+		draw_rect(Rect2(bar_x, y + 36, bar_w * s.shield / C.SHIELD_HP, 4), UiKit.BLUE if s.shield_ready else UiKit.RED)
+		if not s.shield_ready:
+			_text(_f_semi, Vector2(x, y - 10), "TARCZA SIĘ ŁADUJE", 18, UiKit.RED)
 	if s.protected_t > 0.0:
 		_text(_f_semi, Vector2(x, y - 276), "OCHRONA PO ODRODZENIU", 20, UiKit.BLUE)
 	if world.in_safe_zone(s.global_position, s.team):
@@ -323,11 +328,12 @@ func _draw_use_bar(s: Soldier) -> void:
 		return
 	var w := 260.0
 	var at := Vector2(size.x * 0.5 - w * 0.5, size.y * 0.5 + 110.0)
-	var label := "WYSIADANIE" if s.vehicle_id >= 0 or s.riding >= 0 else "WSIADANIE"
+	var leaving: bool = s.vehicle_id >= 0 or s.riding >= 0
+	var label := "WYSIADANIE" if leaving else "WSIADANIE"
 	_text(_f_semi, at + Vector2(0, -8), label, 20, UiKit.INK, HORIZONTAL_ALIGNMENT_CENTER, w)
 	draw_rect(Rect2(at, Vector2(w, 8)), Color(0, 0, 0, 0.55))
 	draw_rect(Rect2(at, Vector2(w * (1.0 - _use_left / _use_total), 8)), UiKit.BRASS)
-	_text(_f_med, at + Vector2(0, 30), "E: przerwij", 18, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER, w)
+	_text(_f_med, at + Vector2(0, 30), "E: przerwij" if leaving else "X: przerwij", 18, UiKit.MUTED, HORIZONTAL_ALIGNMENT_CENTER, w)
 
 
 ## What the admin panel has switched on, so nobody forgets they cannot die.
@@ -360,7 +366,11 @@ func _draw_weapon_panel(s: Soldier) -> void:
 	var right := size.x - 30.0
 	var y := size.y - 34.0
 	var name_text: String = T.t(String(w["name"])).to_upper()
-	if w["melee"]:
+	if w.get("shield", false):
+		var charge := int(round(s.shield / C.SHIELD_HP * 100.0))
+		_text(_f_title, Vector2(right - 300, y - 12), "%d%%" % charge, 52, UiKit.BLUE if charge > 25 else UiKit.RED, HORIZONTAL_ALIGNMENT_RIGHT, 300)
+		_text(_f_semi, Vector2(right - 460, y + 14), "TARCZA ZATRZYMUJE STRZAŁY Z PRZODU", 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_RIGHT, 460)
+	elif w["melee"]:
 		_text(_f_title, Vector2(right - 300, y - 12), w["short"], 44, UiKit.INK, HORIZONTAL_ALIGNMENT_RIGHT, 300)
 		var hint := "PPM — BLOK, ODBIJA LASERY" if C.is_blade(s.weapon_id()) else name_text
 		_text(_f_semi, Vector2(right - 400, y + 14), hint, 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_RIGHT, 400)
@@ -394,6 +404,10 @@ func _draw_weapon_panel(s: Soldier) -> void:
 		else:
 			_text(_f_bold, at + Vector2(16, 24), String(C.WEAPONS[s.loadout[i]]["short"]), 18, col)
 		_text(_f_bold, at + Vector2(0, 16), str(i + 1), 17, col)
+		if s.loadout[i] == C.W.ENERGY_SHIELD:
+			# Its charge under the picture: blue when it can be taken out, red while it recovers.
+			draw_rect(Rect2(at + Vector2(12, 39), Vector2(94, 4)), Color(0, 0, 0, 0.5))
+			draw_rect(Rect2(at + Vector2(12, 39), Vector2(94 * s.shield / C.SHIELD_HP, 4)), UiKit.BLUE if s.shield_ready else UiKit.RED)
 		if active:
 			draw_rect(Rect2(at + Vector2(0, 35), Vector2(slot_w - 6.0, 2)), UiKit.BRASS)
 	sy -= 44.0
@@ -453,7 +467,7 @@ func _draw_super_status(s: Soldier) -> void:
 			var carrier: bool = v.get("kind", 0) == 1
 			var room: bool = world.has_room(v)
 			if v["team"] == s.team and room and float(v["hp"]) > 0.0 and s.global_position.distance_to(v["pos"]) < C.TANK_ENTER_RANGE:
-				_text(_f_bold, Vector2(0, size.y - 182.0), T.t("[E] WSIADAJ: ") + T.t("KIEROWCA" if v["driver"] == 0 else ("STRZELEC DACHOWY" if not carrier and v.get("gunner", 0) == 0 else "PASAŻER")), 26, UiKit.INK, HORIZONTAL_ALIGNMENT_CENTER, size.x)
+				_text(_f_bold, Vector2(0, size.y - 182.0), T.t("[X] WSIADAJ: ") + T.t("KIEROWCA" if v["driver"] == 0 else ("STRZELEC DACHOWY" if not carrier and v.get("gunner", 0) == 0 else "PASAŻER")), 26, UiKit.INK, HORIZONTAL_ALIGNMENT_CENTER, size.x)
 				break
 	if s.is_super():
 		var w := 300.0

@@ -7,7 +7,7 @@ signal closed
 const CONTROLS := [
 	["WSAD", "Ruch"], ["Mysz", "Rozglądanie"], ["LPM", "Strzał / cięcie"], ["PPM", "Celowanie / blok mieczem"],
 	["Shift", "Sprint"], ["Spacja", "Skok"], ["Ctrl / C", "Kucanie"], ["R", "Przeładowanie"],
-	["1 2 3", "Broń"], ["F", "Szybkie cięcie"], ["G", "Granat"], ["B", "Superklasa (moneta)"], ["E", "Wsiadanie do czołgu (2 s)"], ["Tab", "Wyniki"], ["Esc", "Menu"], ["F1", "Panel admina"],
+	["1 2 3 4", "Broń (4: tarcza ciężkiego Rebelii)"], ["Q / E", "Wychylenie w lewo / w prawo"], ["F", "Szybkie cięcie"], ["G", "Granat"], ["B", "Superklasa (moneta)"], ["X", "Wsiadanie do pojazdu (2 s)"], ["E", "Wysiadanie z pojazdu"], ["Tab", "Wyniki"], ["Esc", "Menu"], ["F1", "Panel admina"],
 ]
 
 

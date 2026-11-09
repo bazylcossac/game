@@ -25,6 +25,21 @@ robotów w czarnych garniturach.
 - **Strzelec ciężki (Rebelia)** ma minigun jako jedyną broń główną. Ulepszenia: Chłodzone lufy,
   Ciężkie lufy, Szybki rozruch, Stabilizator żyroskopowy i ogniwa.
 
+## Ciężcy, poprawki balansu
+
+- **Likwidator** ma **300 zdrowia** i chodzi trochę wolniej.
+- **Ciężki Rebelii** ma **200 zdrowia** i nową broń pod klawiszem **4**: **tarczę energetyczną**.
+  Wyciągnięta przed siebie zatrzymuje strzały, granaty i ciosy z przodu, w sumie 100 obrażeń.
+  Przez tarczę widać, ale z nią w ręku nie da się strzelać. Rozbita wraca do miniguna i ładuje się
+  15 sekund; schowana też się ładuje. Pasek ładowania widać pod zdrowiem i przy ikonie tarczy.
+
+## Wychylanie
+
+- **Q** i **E** wychylają w lewo i w prawo, jak w Rainbow Six Siege: oczy, strzały i trafiana głowa
+  przesuwają się o ponad 40 cm w bok, a obraz przechyla się. Ściana obok nie pozwala wychylić się
+  przez nią. Nie działa w sprincie, na leżąco i w pojazdach.
+- **Wsiadanie do pojazdu jest teraz pod X** (E na piechotę wychyla). Wysiadanie dalej pod E.
+
 ## Corp City
 
 Neonowa Dzielnica to teraz **Corp City**, stolica Korpo:

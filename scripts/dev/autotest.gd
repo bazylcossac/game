@@ -18,6 +18,7 @@ extends Node
 ##   menu-art windowed: stages the menu card pictures, see menu_art.gd and tools/menu_art.py.
 ##   lang: Polish and English text, format codes and screens, see lang_test.gd.
 ##   browser-net headless client against a real --server: the list, sides, ping, respawn, see browser_network.gd.
+##   shield headless: the heavies' health, the rebel heavy's energy shield and leaning, see shield_test.gd.
 ##   fixes headless: vehicle use time, kept ammo, empty vehicles, safe zones, stamina, F, admin panel.
 ##   fixes-shots windowed: crosshair, big map, class health, admin panel, see fixes_shots.gd.
 ##   perf-weather windowed: frame cost with the weather on and off, see weather_perf.gd.
@@ -132,6 +133,7 @@ func _ready() -> void:
 		"browser-net": add_child(load("res://scripts/dev/browser_network.gd").new())
 		"respawn": add_child(load("res://scripts/dev/respawn_test.gd").new())
 		"fixes": add_child(load("res://scripts/dev/fixes_test.gd").new())
+		"shield": add_child(load("res://scripts/dev/shield_test.gd").new())
 		"fixes-shots": add_child(load("res://scripts/dev/fixes_shots.gd").new())
 		"perf-weather": add_child(load("res://scripts/dev/weather_perf.gd").new())
 		"browser-shots": add_child(load("res://scripts/dev/browser_shots.gd").new())

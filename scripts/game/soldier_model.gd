@@ -61,6 +61,8 @@ const SWINGS := [
 ]
 
 var team := 0
+## How far the body leans round a corner, -1 left to 1 right, set by the soldier before each pose.
+var lean := 0.0
 var pelvis: Node3D
 var torso: Node3D
 var head: Node3D
@@ -488,6 +490,12 @@ func _pose_for_weapon() -> void:
 			_low_pos = Vector3(0.12, 0.2, -0.3)
 			_grip_r = Vector3(0, -0.01, 0.02)
 			_grip_l = Vector3(-0.02, -0.05, 0.05)
+		C.W.ENERGY_SHIELD:
+			# Held out in front at chest height, the plate covering the body.
+			_aim_pos = Vector3(0.0, 0.3, -0.38)
+			_low_pos = Vector3(0.0, 0.3, -0.36)
+			_grip_r = Vector3(0, -0.02, 0.03)
+			_grip_l = Vector3(-0.1, -0.06, 0.06)
 		C.W.ARM_CANNON, C.W.ARM_ROCKETS:
 			# Both weapon arms come up and point at the target, the way a war machine aims.
 			_aim_pos = Vector3(0.0, 0.42, -0.26)
@@ -646,8 +654,10 @@ func update_pose(delta: float, pos: Vector3, yaw: float, pitch: float, speed: fl
 	torso.rotation = Vector3(
 		pitch * 0.55 - lean * 0.26 - _sprint * 0.1 - _crouch * 0.22 + _prone * PRONE_CHEST + breathe + _flinch.y * 0.8,
 		-pelvis.rotation.y - sway * 0.1 * moving + twist,
-		-clampf(_local_vel.x / 8.0, -1.0, 1.0) * 0.1 + sway * 0.03 * moving - _flinch.x * 0.7)
+		-clampf(_local_vel.x / 8.0, -1.0, 1.0) * 0.1 + sway * 0.03 * moving - _flinch.x * 0.7 - lean * 0.42)
 	head.rotation = Vector3(pitch * 0.45 + _prone * PRONE_LEVEL, -torso.rotation.y * 0.5, -torso.rotation.z * 0.6)
+	# The hips shift a little the same way, so the head ends up near where the camera and hitbox put it.
+	pelvis.position.x += lean * 0.06
 	_animate_flaps(speed)
 
 

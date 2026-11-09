@@ -30,6 +30,8 @@ const POSES := {
 	C.W.HEAVY: {"hip": Vector3(0.22, -0.27, -0.46), "ads": Vector3(0.0, -0.205, -0.32)},
 	C.W.MINIGUN: {"hip": Vector3(0.26, -0.3, -0.46), "ads": Vector3(0.21, -0.31, -0.36)},
 	# The arm in use sits in front, the other one off to its side: both stay in the picture.
+	# Held low and to the left of centre, so the plate covers the body and the street shows through it.
+	C.W.ENERGY_SHIELD: {"hip": Vector3(0.0, -0.4, -0.5), "ads": Vector3(0.0, -0.4, -0.5)},
 	C.W.ARM_CANNON: {"hip": Vector3(0.22, -0.22, -0.36), "ads": Vector3(0.13, -0.19, -0.32)},
 	C.W.ARM_ROCKETS: {"hip": Vector3(-0.2, -0.25, -0.36), "ads": Vector3(-0.12, -0.21, -0.32)},
 	C.W.SMG: {"hip": Vector3(0.2, -0.21, -0.46), "ads": Vector3(0.0, -0.145, -0.3)},
@@ -365,6 +367,10 @@ func _build_arms() -> void:
 		C.W.MECH_GOLEM, C.W.MECH_GOLIAT, C.W.MECH_LAUNCHER, C.W.ARM_CANNON, C.W.ARM_ROCKETS:
 			arm_r = Node3D.new()
 			holder.add_child(arm_r)
+			arm_l = Node3D.new()
+			holder.add_child(arm_l)
+		C.W.ENERGY_SHIELD:
+			arm_r = build.call(Vector3(0, -0.02, 0.03), Vector3(0.18, -0.3, 0.42), false, right_grip)
 			arm_l = Node3D.new()
 			holder.add_child(arm_l)
 		C.W.PISTOL, C.W.REVOLVER, C.W.MPISTOL:

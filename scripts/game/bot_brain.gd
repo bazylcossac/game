@@ -526,6 +526,17 @@ func _pick_weapon(dist: float) -> void:
 			return
 		if s.slot == 3:
 			s.switch_to(0)
+	var shield_slot := s.loadout.find(C.W.ENERGY_SHIELD)
+	if shield_slot >= 0:
+		# The rebel heavy: hurt and still under fire, it puts the shield up until it heals or breaks.
+		var hurt: bool = s.hp < s.max_hp * 0.45 and Net.server_time() - s.last_damage_time < 2.0
+		if s.slot == shield_slot:
+			if s.hp > s.max_hp * 0.75 or not s.shield_ready or Net.server_time() - s.last_damage_time > 4.0:
+				s.switch_to(0)
+			return
+		if hurt and s.shield_ready and not target.is_vehicle() and dist < 50.0:
+			s.switch_to(shield_slot)
+			return
 	if s.loadout.has(C.W.ARM_ROCKETS):
 		# The liquidator: rockets for armour, mechs and close packs, the cannon for the rest.
 		var armour: bool = target.is_vehicle() or target.is_mech()

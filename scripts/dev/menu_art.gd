@@ -58,6 +58,8 @@ const SCENES := [
 	{"name": "check_fight", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(4, 1.7, 110), "look": Vector3(14, 1.4, 96),
 		"men": [[1, 2, 16, 92, 6, 104, false], [1, 0, 19, 95, 6, 104, false], [0, 5, 6, 104, 16, 92, false], [0, 0, 9, 107, 16, 92, true]],
 		"bolts": [[1, 16, 92, 6, 104], [0, 6, 104, 16, 92], [1, 19, 95, 9, 107]]},
+	{"name": "check_shield", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(14, 1.5, 106), "look": Vector3(14, 1.3, 100),
+		"men": [[0, 5, 12.5, 100, 12.5, 107, false, C.W.ENERGY_SHIELD], [0, 0, 15.5, 100, 15.5, 107, false, C.W.CARBINE, 1.0], [1, 0, 18, 100, 18, 107, false, C.W.ASSAULT, -1.0]]},
 	{"name": "check_office", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(-102, 1.7, 147), "look": Vector3(-130, 1.2, 116)},
 	{"name": "check_office_door", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(-118, 1.7, 100), "look": Vector3(-118, 2.0, 130)},
 	{"name": "check_ads", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(0, 2.0, 150), "look": Vector3(-40, 18, 110)},
@@ -110,7 +112,10 @@ func _stage(scene: Dictionary) -> void:
 		var m: Node3D = MechModel.new() if cd.get("mech", false) else SoldierModel.new()
 		m.call("setup", team)
 		stage.add_child(m)
-		m.call("set_loadout", cd["weapons"][0], spec[1])
+		# Optional: a weapon to hold instead of the first, and a lean.
+		m.call("set_loadout", spec[7] if spec.size() > 7 else cd["weapons"][0], spec[1])
+		if spec.size() > 8:
+			m.set("lean", spec[8])
 		men.append([m, spec])
 	for spec: Array in scene.get("tanks", []):
 		var tank := TankModel.new()

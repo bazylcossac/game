@@ -72,6 +72,7 @@ static func build(weapon_id: int, team: int, parts: Array = []) -> Node3D:
 		C.W.RIFLE: _rifle(root, team)
 		C.W.RAIL: _rail(root, team)
 		C.W.GREATSWORD: _greatsword(root, team)
+		C.W.ENERGY_SHIELD: _energy_shield(root, team)
 		C.W.AT_ROCKET:
 			P.cyl(root, .075, .075, 1.05, Vector3(0, .09, -.15), _gun_metal(), Vector3(PI * .5, 0, 0), Vector3.ONE, 20)
 			P.box(root, Vector3(.055, .16, .09), Vector3(0, -.03, .02), _dark())
@@ -142,6 +143,37 @@ static func _iron(r: Node3D, y: float, z: float, team: int) -> void:
 	P.box(n, Vector3(0.008, y - 0.1, 0.008), Vector3(0, (y + 0.08) * 0.5, z), _steel())
 	P.ring(n, 0.024, 0.0022, Vector3(0, y, z), _steel())
 	P.box(n, Vector3(0.0016, 0.0016, 0.002), Vector3(0, y, z), _core(team))
+
+
+## The rebel heavy's shield: a scrap emitter on a grip, throwing a plate of light out in front. The
+## plate is see-through, so the player can still watch the street behind it.
+static func _energy_shield(r: Node3D, team: int) -> void:
+	var body := Node3D.new()
+	body.name = "Body"
+	r.add_child(body)
+	P.box(body, Vector3(0.05, 0.12, 0.06), Vector3(0, -0.02, 0.0), _dark())
+	P.box(body, Vector3(0.12, 0.09, 0.2), Vector3(0, 0.07, -0.06), _gun_metal())
+	P.cyl(body, 0.045, 0.06, 0.05, Vector3(0, 0.07, -0.18), _steel(), Vector3(PI * 0.5, 0, 0), Vector3.ONE, 12)
+	P.box(body, Vector3(0.04, 0.006, 0.07), Vector3(0, 0.117, -0.06), Mats.glow(C.TEAM_COLORS[team] * 0.5, 0.35))
+	var plate := Node3D.new()
+	plate.name = "Plate"
+	plate.position = Vector3(0.0, 0.12, -0.44)
+	r.add_child(plate)
+	var field := StandardMaterial3D.new()
+	field.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	field.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	field.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	field.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var c: Color = C.TEAM_COLORS[team]
+	field.albedo_color = Color(c.r * 0.35, c.g * 0.35, c.b * 0.35, 0.22)
+	P.box(plate, Vector3(0.66, 0.9, 0.01), Vector3.ZERO, field)
+	var edge: Material = Mats.glow(c, 1.1)
+	for side: float in [-1.0, 1.0]:
+		P.box(plate, Vector3(0.012, 0.92, 0.012), Vector3(side * 0.33, 0, 0), edge)
+		P.box(plate, Vector3(0.67, 0.012, 0.012), Vector3(0, side * 0.455, 0), edge)
+	for y: float in [-0.22, 0.0, 0.22]:
+		P.box(plate, Vector3(0.62, 0.003, 0.008), Vector3(0, y, 0), Mats.glow(c, 0.35))
+	_muzzle(r, Vector3(0, 0.12, -0.46))
 
 
 ## Korpo's liquidator: the weapon in use straight ahead, the other arm beside it. Both come from

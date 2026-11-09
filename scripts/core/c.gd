@@ -24,7 +24,7 @@ const NEUTRAL_COLOR := Color(0.72, 0.72, 0.68)
 ## Beam colours are pushed above 1.0 so they bloom through the glow pass.
 const TEAM_BEAM := [Color(0.16, 0.5, 3.0), Color(3.0, 0.1, 0.07)]
 
-enum W { PISTOL, CARBINE, SNIPER, HEAVY, SWORD, SMG, ASSAULT, SCATTER, SILENT, MECH_GOLEM, MECH_GOLIAT, MECH_LAUNCHER, LIGHTSABER, TANK_CANNON, TANK_MG, REVOLVER, MPISTOL, SMG2, RIFLE, RAIL, GREATSWORD, AT_ROCKET, APC_NONE, MINIGUN, ARM_CANNON, ARM_ROCKETS }
+enum W { PISTOL, CARBINE, SNIPER, HEAVY, SWORD, SMG, ASSAULT, SCATTER, SILENT, MECH_GOLEM, MECH_GOLIAT, MECH_LAUNCHER, LIGHTSABER, TANK_CANNON, TANK_MG, REVOLVER, MPISTOL, SMG2, RIFLE, RAIL, GREATSWORD, AT_ROCKET, APC_NONE, MINIGUN, ARM_CANNON, ARM_ROCKETS, ENERGY_SHIELD }
 
 const WEAPONS := {
 	W.AT_ROCKET: {
@@ -76,6 +76,15 @@ const WEAPONS := {
 		"spread_hip": 2.2, "spread_ads": 1.0, "spread_move": 1.5, "recoil": 1.5, "range": 125.0,
 		"falloff_start": 42.0, "falloff_min": 0.6, "ads_fov": 0.9, "sound": "laser_plasma", "beam": 0.085,
 		"move_mult": 0.9, "shake": 0.14, "no_sights": true, "arm": true,
+	},
+	## The rebel heavy's energy shield, held out in front like a weapon. It does not fire: it stops
+	## shots from the front until C.SHIELD_HP of damage breaks it.
+	W.ENERGY_SHIELD: {
+		"name": "Tarcza energetyczna", "short": "TARCZA", "melee": false, "auto": false,
+		"damage": 0.0, "head_mult": 1.0, "rate": 1.0, "mag": 0, "reserve": 0, "reload": 1.0,
+		"spread_hip": 0.0, "spread_ads": 0.0, "spread_move": 0.0, "recoil": 0.0, "range": 1.0,
+		"falloff_start": 1.0, "falloff_min": 1.0, "ads_fov": 1.0, "sound": "empty_click", "beam": 0.0,
+		"move_mult": 0.88, "no_sights": true, "shield": true,
 	},
 	W.ARM_ROCKETS: {
 		"name": "Wyrzutnia ramienna", "short": "RAKIETY", "melee": false, "auto": false,
@@ -264,9 +273,9 @@ const CLASSES := [
 			"stats": [0.7, 0.7, 0.65],
 		},
 		{
-			"id": "gunner", "name": "Strzelec ciężki", "hp": 135.0, "speed": 0.84, "grenades": 1, "smoke": 1,
+			"id": "gunner", "name": "Strzelec ciężki", "hp": 200.0, "speed": 0.84, "grenades": 1, "smoke": 1, "shield": true,
 			"weapons": [W.MINIGUN, W.PISTOL, W.SWORD], "sword_mult": 1.0,
-			"desc": "Minigun poskładany ze złomu zalewa ulicę ogniem, ale lufy muszą się najpierw rozkręcić. Wolny i wytrzymały.",
+			"desc": "Minigun ze złomu i tarcza energetyczna pod klawiszem 4. Tarcza zatrzymuje 100 obrażeń z przodu, rozbita ładuje się 15 s. Wolny i bardzo wytrzymały.",
 			"stats": [0.7, 1.0, 0.35],
 		},
 		{
@@ -315,7 +324,7 @@ const CLASSES := [
 			"stats": [1.0, 0.5, 0.65],
 		},
 		{
-			"id": "heavy", "name": "Likwidator", "frame": "Big", "tie": "red", "hp": 150.0, "speed": 0.88, "grenades": 1, "fire": 1,
+			"id": "heavy", "name": "Likwidator", "frame": "Big", "tie": "red", "hp": 300.0, "speed": 0.85, "grenades": 1, "fire": 1,
 			"weapons": [W.ARM_CANNON, W.ARM_ROCKETS], "sword_mult": 1.0,
 			"desc": "Czerwony krawat i ręce zamienione w broń: działo laserowe w prawym ramieniu, wyrzutnia dwóch rakiet w lewym. Niszczy piechotę i czołgi.",
 			"stats": [0.65, 1.0, 0.4],
@@ -442,6 +451,10 @@ const COIN_DROP_LIFETIME := 40.0
 const COIN_PICKUP_RADIUS := 1.9
 
 # Abilities
+## The rebel heavy's energy shield: what it soaks up before it breaks, and how long a broken
+## shield takes to charge back to full before it can be raised again.
+const SHIELD_HP := 100.0
+const SHIELD_RECHARGE := 15.0
 const HEAL_RADIUS := 9.0
 const HEAL_RATE := 6.0
 const SCORE_HEAL_PER_50 := 25
@@ -536,6 +549,16 @@ const F_CLOAK := 128
 ## Does not fit in the snapshot's flag byte, so it travels in the top bit of the slot byte.
 const F_PRONE := 256
 const SLOT_PRONE := 128
+## Leaning round a corner, left or right. Past the flag byte, so in the snapshot it rides in the
+## slot byte next to prone.
+const F_LEAN_L := 512
+const F_LEAN_R := 1024
+const SLOT_LEAN_L := 16
+const SLOT_LEAN_R := 32
+## How far the head moves out to the side, how far the view rolls, and how fast.
+const LEAN_DIST := 0.42
+const LEAN_ROLL := 0.2
+const LEAN_SPEED := 6.0
 
 ## Rebels go by call signs: nobody gives the machines a real name.
 const BOT_NAMES_RESISTANCE := [

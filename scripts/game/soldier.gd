@@ -162,6 +162,43 @@ func setup(w: World, new_sid: int, new_peer: int, new_team: int, new_name: Strin
 	visible = true
 
 
+## The energy shield, for classes that have one. `shield` is its charge, 0 to C.SHIELD_HP. A broken
+## shield is not ready again until it has charged all the way back.
+var shield := 0.0
+var shield_ready := true
+## -1 leaning left, 1 right, 0 upright: what the player asks for. `lean_amount` follows it smoothly.
+var lean := 0
+var lean_amount := 0.0
+
+
+func has_shield() -> bool:
+	return class_data().get("shield", false)
+
+
+## Holding the shield up in front.
+func shield_held() -> bool:
+	return alive and weapon_id() == C.W.ENERGY_SHIELD and shield_ready and shield > 0.0
+
+
+func can_lean() -> bool:
+	return alive and riding < 0 and not prone and not sprinting and not is_vehicle() and not is_mech()
+
+
+## Where leaning puts the head, stopped short of any wall beside it so nobody looks through one.
+func lean_offset() -> Vector3:
+	if is_zero_approx(lean_amount):
+		return Vector3.ZERO
+	var side := Basis(Vector3.UP, yaw) * Vector3.RIGHT * signf(lean_amount)
+	var reach := absf(lean_amount) * C.LEAN_DIST
+	var eye := global_position + Vector3.UP * eye_height()
+	if is_inside_tree():
+		var q := PhysicsRayQueryParameters3D.create(eye, eye + side * (reach + 0.18), C.LAYER_WORLD)
+		var hit := get_world_3d().direct_space_state.intersect_ray(q)
+		if not hit.is_empty():
+			reach = maxf(minf(reach, eye.distance_to(hit["position"]) - 0.18), 0.0)
+	return side * reach + Vector3.DOWN * absf(lean_amount) * 0.05
+
+
 func weapon_id() -> int:
 	return loadout[slot] if slot < loadout.size() else C.W.PISTOL
 
@@ -260,7 +297,7 @@ func is_cloaked() -> bool:
 
 
 func eye_position() -> Vector3:
-	return global_position + Vector3.UP * eye_height()
+	return global_position + Vector3.UP * eye_height() + lean_offset()
 
 
 func aim_direction() -> Vector3:
@@ -278,6 +315,8 @@ func state_flags() -> int:
 	if reload_t > 0.0: f |= C.F_RELOAD
 	if protected_t > 0.0: f |= C.F_PROTECTED
 	if is_cloaked(): f |= C.F_CLOAK
+	if lean < 0: f |= C.F_LEAN_L
+	if lean > 0: f |= C.F_LEAN_R
 	return f
 
 
@@ -289,6 +328,7 @@ func apply_flags(f: int) -> void:
 	blocking = f & C.F_BLOCK != 0
 	net_cloaked = f & C.F_CLOAK != 0
 	net_reloading = f & C.F_RELOAD != 0
+	lean = -1 if f & C.F_LEAN_L != 0 else (1 if f & C.F_LEAN_R != 0 else 0)
 
 
 # ---------------------------------------------------------------- life cycle
@@ -358,6 +398,9 @@ func _apply_class(new_class: int) -> void:
 	if new_class == 0 and kit.get("ordnance", "grenades") == "rockets":
 		loadout = loadout.duplicate()
 		loadout.append(C.W.AT_ROCKET)
+	if cd.get("shield", false):
+		loadout = loadout.duplicate()
+		loadout.append(C.W.ENERGY_SHIELD)
 	mags.resize(loadout.size())
 	reserves.resize(loadout.size())
 	slot_stats.clear()
@@ -376,6 +419,10 @@ func _apply_class(new_class: int) -> void:
 	if nades[nade_kind] <= 0:
 		pick_next_nade()
 	stamina_max = C.STAMINA_MAX * (1.5 if has_perk("runner") else 1.0)
+	shield = C.SHIELD_HP if has_shield() else 0.0
+	shield_ready = true
+	lean = 0
+	lean_amount = 0.0
 	slot = 0
 	reload_t = 0.0
 	fire_cd = 0.0
@@ -451,6 +498,7 @@ func die() -> void:
 # ---------------------------------------------------------------- simulation
 
 func _physics_process(delta: float) -> void:
+	lean_amount = move_toward(lean_amount, float(lean) if can_lean() else 0.0, delta * C.LEAN_SPEED)
 	# Anyone squeezed through the terrain is put back on top of it, not left to fall for ever.
 	if alive and not noclip and global_position.y < FELL_THROUGH and control != Driver.PROXY_VIEW:
 		var ground := world.map.ground_height(global_position.x, global_position.z)
@@ -505,6 +553,7 @@ func _process(delta: float) -> void:
 		model.set_motion(Vector2(local_vel.x, -local_vel.z), grounded, reloading, sprinting)
 		if model is SoldierModel:
 			(model as SoldierModel).prone = prone
+			(model as SoldierModel).lean = lean_amount
 		model.update_pose(pose_delta, pos, yaw, pitch, speed, crouching, aiming, blocking, alive)
 		model.set_hull(hull_yaw)
 		model.set_health(hp / max_hp)
@@ -783,6 +832,9 @@ func refill() -> void:
 
 func switch_to(new_slot: int) -> void:
 	if new_slot == slot or new_slot < 0 or new_slot >= loadout.size():
+		return
+	# A broken shield cannot be taken out again until it has charged back.
+	if loadout[new_slot] == C.W.ENERGY_SHIELD and not shield_ready:
 		return
 	if new_slot == C.TANK_ROOF_SLOT and world.roof_taken(self):
 		return

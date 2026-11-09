@@ -275,6 +275,12 @@ func _tick_regen(delta: float) -> void:
 		var wait := C.REGEN_DELAY_PERK if s.has_perk("fieldmed") else C.REGEN_DELAY
 		if s.alive and not s.is_super() and s.hp < s.max_hp and now - s.last_damage_time > wait:
 			s.hp = minf(s.hp + C.REGEN_RATE * step, s.max_hp)
+	# Shields charge while they are put away, and a broken one is ready again only once full.
+	for s: Soldier in world.soldiers.values():
+		if s.alive and s.has_shield() and s.shield < C.SHIELD_HP and s.weapon_id() != C.W.ENERGY_SHIELD:
+			s.shield = minf(s.shield + C.SHIELD_HP / C.SHIELD_RECHARGE * step, C.SHIELD_HP)
+			if s.shield >= C.SHIELD_HP:
+				s.shield_ready = true
 	for healer: Soldier in world.soldiers.values():
 		if healer.alive and healer.class_data().get("healer", false):
 			_heal_around(healer, step)
@@ -949,7 +955,8 @@ func sv_state(peer: int, pos: Vector3, new_yaw: float, new_pitch: float, flags: 
 		s.hull_yaw = hull
 	s.pitch = clampf(new_pitch, -1.55, 1.55)
 	s.apply_flags(flags)
-	if new_slot != s.slot and new_slot >= 0 and new_slot < s.loadout.size() and not (s.is_vehicle() and new_slot == C.TANK_ROOF_SLOT and world.roof_taken(s)):
+	var shield_down: bool = new_slot >= 0 and new_slot < s.loadout.size() and s.loadout[new_slot] == C.W.ENERGY_SHIELD and not s.shield_ready
+	if new_slot != s.slot and new_slot >= 0 and new_slot < s.loadout.size() and not shield_down and not (s.is_vehicle() and new_slot == C.TANK_ROOF_SLOT and world.roof_taken(s)):
 		s.slot = new_slot
 		s.reload_t = 0.0
 		if s.model:
@@ -1056,13 +1063,15 @@ func _trace_soldiers(origin: Vector3, dir: Vector3, max_dist: float, shooter: So
 		var reach := h * 0.5 + r + 0.3
 		if (to - dir * along).length_squared() > reach * reach:
 			continue
+		# Leaning moves the head and the shoulders out to the side; the feet stay put.
+		var lean := s.lean_offset()
 		if not s.class_data().get("no_headshot", false):
-			var head_d := _ray_sphere(origin, dir, p + Vector3.UP * (h - 0.15), C.HEAD_RADIUS)
+			var head_d := _ray_sphere(origin, dir, p + Vector3.UP * (h - 0.15) + lean, C.HEAD_RADIUS)
 			if head_d >= 0.0 and head_d < best_d:
 				best_d = head_d
 				best = {"soldier": s, "dist": head_d, "head": true}
 				continue
-		var body_d := _ray_capsule(origin, dir, p + Vector3.UP * 0.3, p + Vector3.UP * (h - 0.42), r)
+		var body_d := _ray_capsule(origin, dir, p + Vector3.UP * 0.3, p + Vector3.UP * (h - 0.42) + lean * 0.7, r)
 		if body_d >= 0.0 and body_d < best_d:
 			best_d = body_d
 			best = {"soldier": s, "dist": body_d, "head": false}
@@ -1316,6 +1325,20 @@ func apply_damage(v: Soldier, amount: float, attacker: Soldier, weapon_id: int, 
 		return
 	if not crew_loss and (v.god or world.in_safe_zone(v.global_position, v.team)):
 		return
+	if not crew_loss and _shield_takes(v, from):
+		var soaked := minf(amount, v.shield)
+		v.shield -= soaked
+		amount -= soaked
+		Net.broadcast(&"shield_hit", [_shield_point(v, from)], false)
+		if v.shield <= 0.0:
+			v.shield = 0.0
+			v.shield_ready = false
+			v.switch_to(0)
+			Net.broadcast(&"shield_broken", [v.sid])
+		if amount <= 0.0:
+			if attacker != null and attacker != v:
+				Net.send_to_owner(attacker, &"hit_confirm", [1])
+			return
 	v.hp -= amount
 	if v.is_gunner() and not crew_loss:
 		var vehicle := world.vehicle_for(v.sid)
@@ -1447,6 +1470,25 @@ func rocket_impact(id: int, owner_sid: int, pos: Vector3, direct: Soldier, vehic
 ## Which launcher a rocket came from, for the kill feed.
 func _rocket_of(owner: Soldier) -> int:
 	return C.W.ARM_ROCKETS if owner.loadout.has(C.W.ARM_ROCKETS) else C.W.AT_ROCKET
+
+
+## Whether a held shield stands between this soldier and where the damage came from: anything in
+## front of it, about eighty degrees either side of where it faces.
+func _shield_takes(v: Soldier, from: Vector3) -> bool:
+	if not v.shield_held():
+		return false
+	var to := from - v.global_position
+	to.y = 0.0
+	if to.length_squared() < 0.01:
+		return false
+	var facing := v.aim_direction()
+	facing.y = 0.0
+	return facing.normalized().dot(to.normalized()) > 0.17
+
+
+func _shield_point(v: Soldier, from: Vector3) -> Vector3:
+	var to := (from - v.global_position) * Vector3(1, 0, 1)
+	return v.global_position + Vector3.UP * 1.1 + to.normalized() * 0.55
 
 
 func explode(grenade_id: int, owner_sid: int, pos: Vector3) -> void:

@@ -175,6 +175,7 @@ func _physics_process(delta: float) -> void:
 		_send_state(delta)
 		return
 	if s.riding >= 0:
+		s.lean = 0
 		if Input.is_action_just_pressed("use"):
 			Net.send_use()
 		if Input.is_action_just_pressed("seat"):
@@ -195,8 +196,17 @@ func _physics_process(delta: float) -> void:
 	else:
 		build_kind = -1
 	_tick_command(s)
-	if Input.is_action_just_pressed("use"):
-		Net.send_use()
+	# On foot Q and E lean round corners, as in a close-quarters shooter, and X gets into a vehicle.
+	# Inside a vehicle E still gets out.
+	var on_foot := not s.is_vehicle() and not s.is_mech()
+	if on_foot:
+		s.lean = (1 if Input.is_action_pressed("lean_right") else 0) - (1 if Input.is_action_pressed("lean_left") else 0)
+		if Input.is_action_just_pressed("seat"):
+			Net.send_use()
+	else:
+		s.lean = 0
+		if Input.is_action_just_pressed("use"):
+			Net.send_use()
 	if Input.is_action_just_pressed("seat") and s.is_vehicle():
 		Net.send_switch_seat()
 	if Input.is_action_just_pressed("thermal"):
@@ -241,7 +251,7 @@ func _physics_process(delta: float) -> void:
 		s.blocking = aim_held and s.stamina > 0.3
 	else:
 		s.blocking = false
-		s.aiming = aim_held and s.reload_t <= 0.0 and not s.sprinting and s.switch_t <= 0.0 and not designating
+		s.aiming = aim_held and s.reload_t <= 0.0 and not s.sprinting and s.switch_t <= 0.0 and not designating and not s.weapon().get("shield", false)
 
 	if Input.is_action_just_pressed("melee"):
 		if s.melee_slot() >= 0:
@@ -352,6 +362,9 @@ func _switch(slot: int) -> void:
 func _try_attack() -> void:
 	var s := soldier
 	var w := s.weapon()
+	# The shield only stops shots; it has nothing to fire.
+	if w.get("shield", false):
+		return
 	if s.is_melee():
 		if Input.is_action_pressed("fire") and s.can_swing():
 			_swing()
@@ -618,8 +631,8 @@ func _camera_alive(delta: float) -> void:
 	var speed := Vector2(s.velocity.x, s.velocity.z).length()
 	var on_floor := s.is_on_floor()
 	var bob := sin(Time.get_ticks_msec() * 0.001 * (5.0 + speed * 1.1)) * 0.012 * clampf(speed / 6.0, 0.0, 1.0) if on_floor else 0.0
-	camera.global_position = pos + Vector3.UP * (_eye + bob * (1.0 - vm.ads) - _land_dip)
-	camera.rotation = Vector3(s.pitch, s.yaw, 0.0)
+	camera.global_position = pos + Vector3.UP * (_eye + bob * (1.0 - vm.ads) - _land_dip) + s.lean_offset()
+	camera.rotation = Vector3(s.pitch, s.yaw, -s.lean_amount * C.LEAN_ROLL)
 	if s.on_roof_gun():
 		_place_gunner_camera(pos)
 	elif s.is_mech():

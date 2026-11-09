@@ -29,7 +29,7 @@ func _ready() -> void:
 				continue
 			if id == C.W.MINIGUN and team == C.Team.EMPIRE:
 				continue
-			if C.WEAPONS[id].get("arm", false) and team == C.Team.RESISTANCE:
+			if (C.WEAPONS[id].get("arm", false) and team == C.Team.RESISTANCE) or (id == C.W.ENERGY_SHIELD and team == C.Team.EMPIRE):
 				continue
 			var gun := WeaponFactory.build(id, team)
 			# A weapon arm is drawn alone, without the other arm beside it.

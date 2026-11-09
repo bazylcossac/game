@@ -3,6 +3,19 @@ extends RefCounted
 ## English text. Keys are the Polish strings in the code; see T for how they are applied.
 
 const TEXT := {
+	"X: przerwij": "X: cancel",
+	"1 2 3 4": "1 2 3 4",
+	"Broń (4: tarcza ciężkiego Rebelii)": "Weapons (4: the rebel heavy's shield)",
+	"Q / E": "Q / E",
+	"Wychylenie w lewo / w prawo": "Lean left / right",
+	"Wsiadanie do pojazdu (2 s)": "Get into a vehicle (2 s)",
+	"Wysiadanie z pojazdu": "Get out of a vehicle",
+	"[X] WSIADAJ: ": "[X] ENTER: ",
+	"Tarcza energetyczna": "Energy shield",
+	"TARCZA": "SHIELD",
+	"TARCZA ZATRZYMUJE STRZAŁY Z PRZODU": "THE SHIELD STOPS SHOTS FROM THE FRONT",
+	"TARCZA SIĘ ŁADUJE": "SHIELD RECHARGING",
+	"Minigun ze złomu i tarcza energetyczna pod klawiszem 4. Tarcza zatrzymuje 100 obrażeń z przodu, rozbita ładuje się 15 s. Wolny i bardzo wytrzymały.": "A scrap minigun and an energy shield on key 4. The shield stops 100 damage from the front and takes 15 s to recharge once broken. Slow and very tough.",
 	"Centrum zatrudnienia": "Employment centre",
 	"Bank danych": "Data bank",
 	"Serwis androidów": "Android service",
@@ -24,7 +37,6 @@ const TEXT := {
 	"Wyrzutnia ramienna": "Arm launcher",
 	"RAKIETY": "ROCKETS",
 	"Trzon Rebelii. Karabinek laserowy, trzy granaty i niebieski miecz świetlny.": "The core of the Rebellion. Laser carbine, three grenades and a blue lightsaber.",
-	"Minigun poskładany ze złomu zalewa ulicę ogniem, ale lufy muszą się najpierw rozkręcić. Wolny i wytrzymały.": "A minigun built from scrap floods a street with fire, but its barrels have to spin up first. Slow and tough.",
 	"Mech zespawany przez Rebelię z wraków maszyn. Ogromna wytrzymałość, ale jest powolny, nie wejdzie do budynków, a miecze ranią go mocniej.": "A mech the Rebellion welded together from machine wrecks. Huge endurance, but slow, it cannot enter buildings and swords hurt it more.",
 	"Skoczek": "Jumper",
 	"Feniks": "Phoenix",
@@ -419,7 +431,6 @@ const TEXT := {
 	"DZIAŁKO · DZIAŁO ZABLOKOWANE · [1] POWRÓT · W/S NAPĘD · A/D SKRĘT": "AUTOGUN · CANNON LOCKED · [1] BACK · W/S DRIVE · A/D TURN",
 	"KIEROWCA / DZIAŁO · W/S NAPĘD · A/D SKRĘT": "DRIVER / CANNON · W/S DRIVE · A/D TURN",
 	"%s · [X] ZMIANA MIEJSCA%s": "%s · [X] SWITCH SEAT%s",
-	"[E] WSIADAJ: ": "[E] ENTER: ",
 	"KIEROWCA": "DRIVER",
 	"STRZELEC DACHOWY": "ROOF GUNNER",
 	"SPACJA — LOT": "SPACE — FLY",
@@ -566,7 +577,6 @@ const TEXT := {
 	"NIC NIE MA W CELOWNIKU": "NOTHING UNDER THE CROSSHAIR",
 	"BOTÓW NA STRONĘ: %d": "BOTS PER SIDE: %d",
 	"Manekin %d": "Dummy %d",
-	"Wsiadanie do czołgu (2 s)": "Get into a tank (2 s)",
 	"Panel admina": "Admin panel",
 	"Deszcz i efekty pogody": "Rain and weather effects",
 }
