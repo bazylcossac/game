@@ -2,9 +2,9 @@ class_name C
 extends RefCounted
 ## Game-wide constants and data tables. Pure data: safe to use on client and server.
 
-const GAME_TITLE := "MIECZ DAWIDA"
-const GAME_SUBTITLE := "LASEROWY FRONT"
-const VERSION := "0.12.0"
+const GAME_TITLE := "CORP WARS"
+const GAME_SUBTITLE := "OSTATNI BUNT LUDZI"
+const VERSION := "0.13.0"
 const DEFAULT_PORT := 7777
 const MAX_PLAYERS := 16
 ## Spare connections, so a full server can still answer the server lists asking about it.
@@ -17,14 +17,14 @@ const SERVERS := [
 enum Team { RESISTANCE = 0, EMPIRE = 1 }
 const NEUTRAL := -1
 
-const TEAM_NAMES := ["USA", "Żelazne Imperium"]
-const TEAM_SHORT := ["USA", "IMPERIUM"]
+const TEAM_NAMES := ["Rebelia", "Korpo"]
+const TEAM_SHORT := ["REBELIA", "KORPO"]
 const TEAM_COLORS := [Color(0.3, 0.68, 1.0), Color(1.0, 0.28, 0.2)]
 const NEUTRAL_COLOR := Color(0.72, 0.72, 0.68)
 ## Beam colours are pushed above 1.0 so they bloom through the glow pass.
 const TEAM_BEAM := [Color(0.16, 0.5, 3.0), Color(3.0, 0.1, 0.07)]
 
-enum W { PISTOL, CARBINE, SNIPER, HEAVY, SWORD, SMG, ASSAULT, SCATTER, SILENT, MECH_GOLEM, MECH_GOLIAT, MECH_LAUNCHER, LIGHTSABER, TANK_CANNON, TANK_MG, REVOLVER, MPISTOL, SMG2, RIFLE, RAIL, GREATSWORD, AT_ROCKET, APC_NONE, MINIGUN }
+enum W { PISTOL, CARBINE, SNIPER, HEAVY, SWORD, SMG, ASSAULT, SCATTER, SILENT, MECH_GOLEM, MECH_GOLIAT, MECH_LAUNCHER, LIGHTSABER, TANK_CANNON, TANK_MG, REVOLVER, MPISTOL, SMG2, RIFLE, RAIL, GREATSWORD, AT_ROCKET, APC_NONE, MINIGUN, ARM_CANNON, ARM_ROCKETS }
 
 const WEAPONS := {
 	W.AT_ROCKET: {
@@ -32,7 +32,7 @@ const WEAPONS := {
 		"damage": 150.0, "head_mult": 1.0, "rate": 1.0, "mag": 1, "reserve": 2, "reload": 2.6,
 		"spread_hip": .6, "spread_ads": .15, "spread_move": 1.5, "recoil": 5.0, "range": 650.0,
 		"falloff_start": 650.0, "falloff_min": 1.0, "ads_fov": .4, "sound": "tank_fire", "beam": .015,
-		"move_mult": .8, "vs_armor": 1.0,
+		"move_mult": .8, "vs_armor": 1.0, "rocket": true,
 	},
 	W.PISTOL: {
 		"name": "Pistolet laserowy", "short": "PISTOLET", "melee": false, "auto": false,
@@ -68,6 +68,21 @@ const WEAPONS := {
 		"spread_hip": 2.9, "spread_ads": 1.1, "spread_move": 1.9, "recoil": 0.75, "range": 105.0,
 		"falloff_start": 35.0, "falloff_min": 0.55, "ads_fov": 1.0, "sound": "laser_minigun", "beam": 0.06,
 		"move_mult": 0.82, "shake": 0.08, "spin": 0.55, "no_sights": true,
+	},
+	## The Korpo heavy has no hands: its right forearm is a laser cannon, its left one a rocket pod.
+	W.ARM_CANNON: {
+		"name": "Działo ramienne", "short": "DZIAŁO RAMIENNE", "melee": false, "auto": true,
+		"damage": 29.0, "head_mult": 1.4, "rate": 0.12, "mag": 48, "reserve": 192, "reload": 3.0,
+		"spread_hip": 2.2, "spread_ads": 1.0, "spread_move": 1.5, "recoil": 1.5, "range": 125.0,
+		"falloff_start": 42.0, "falloff_min": 0.6, "ads_fov": 0.9, "sound": "laser_plasma", "beam": 0.085,
+		"move_mult": 0.9, "shake": 0.14, "no_sights": true, "arm": true,
+	},
+	W.ARM_ROCKETS: {
+		"name": "Wyrzutnia ramienna", "short": "RAKIETY", "melee": false, "auto": false,
+		"damage": 150.0, "head_mult": 1.0, "rate": 0.55, "mag": 2, "reserve": 4, "reload": 3.4,
+		"spread_hip": .7, "spread_ads": .25, "spread_move": 1.4, "recoil": 4.0, "range": 650.0,
+		"falloff_start": 650.0, "falloff_min": 1.0, "ads_fov": 0.75, "sound": "tank_fire", "beam": .015,
+		"move_mult": .9, "vs_armor": 1.0, "no_sights": true, "arm": true, "rocket": true,
 	},
 	W.SWORD: {
 		"name": "Miecz energetyczny", "short": "MIECZ", "melee": true, "auto": true,
@@ -221,7 +236,7 @@ const CLASSES := [
 		{
 			"id": "fighter", "name": "Szturmowiec", "hp": 100.0, "speed": 1.0, "grenades": 3, "smoke": 1,
 			"weapons": [W.CARBINE, W.PISTOL, W.LIGHTSABER], "sword_mult": 1.0,
-			"desc": "Trzon armii USA. Karabinek laserowy, trzy granaty i niebieski miecz świetlny.",
+			"desc": "Trzon Rebelii. Karabinek laserowy, trzy granaty i niebieski miecz świetlny.",
 			"stats": [0.75, 0.6, 0.6],
 		},
 		{
@@ -251,7 +266,7 @@ const CLASSES := [
 		{
 			"id": "gunner", "name": "Strzelec ciężki", "hp": 135.0, "speed": 0.84, "grenades": 1, "smoke": 1,
 			"weapons": [W.MINIGUN, W.PISTOL, W.SWORD], "sword_mult": 1.0,
-			"desc": "Minigun zalewa ulicę ogniem, ale lufy muszą się najpierw rozkręcić. Wolny i wytrzymały.",
+			"desc": "Minigun poskładany ze złomu zalewa ulicę ogniem, ale lufy muszą się najpierw rozkręcić. Wolny i wytrzymały.",
 			"stats": [0.7, 1.0, 0.35],
 		},
 		{
@@ -259,22 +274,22 @@ const CLASSES := [
 			"mech": true, "height": 3.4, "eye": 3.05, "radius": 0.62, "no_headshot": true, "no_sprint": true,
 			"no_jump": true, "no_crouch": true, "melee_vuln": 1.5,
 			"weapons": [W.MECH_GOLEM, W.MECH_LAUNCHER], "sword_mult": 1.0,
-			"desc": "Mech z brązu i gliny. Ogromna wytrzymałość, ale jest powolny, nie wejdzie do budynków, a miecze ranią go mocniej.",
+			"desc": "Mech zespawany przez Rebelię z wraków maszyn. Ogromna wytrzymałość, ale jest powolny, nie wejdzie do budynków, a miecze ranią go mocniej.",
 			"stats": [0.8, 1.0, 0.2],
 		},
 		{
-			"id": "maccabee", "name": "Ranger", "hp": 130.0, "speed": 1.15, "grenades": 1, "duration": 90.0,
+			"id": "maccabee", "name": "Skoczek", "hp": 130.0, "speed": 1.15, "grenades": 1, "duration": 90.0,
 			"jetpack": true, "melee_first": true,
 			"weapons": [W.SWORD, W.PISTOL, W.SWORD], "sword_mult": 1.4,
 			"desc": "Plecak odrzutowy i miecz. Przytrzymaj spację, aby lecieć. Spada z nieba na wroga, ale paliwo szybko się kończy.",
 			"stats": [0.75, 0.7, 1.0],
 		},
 		{
-			"id": "lion", "name": "Patriot", "hp": 800.0, "speed": 1.0, "grenades": 0, "vehicle": true,
+			"id": "lion", "name": "Feniks", "hp": 800.0, "speed": 1.0, "grenades": 0, "vehicle": true,
 			"height": 3.0, "eye": 2.9, "radius": 1.5, "no_headshot": true, "no_sprint": true, "no_jump": true,
 			"no_crouch": true, "melee_vuln": 0.8, "hit_box": Vector3(1.9, 1.15, 3.55),
 			"weapons": [W.TANK_CANNON, W.TANK_MG], "sword_mult": 1.0,
-			"desc": "Czołg antygrawitacyjny armii USA.",
+			"desc": "Czołg antygrawitacyjny Rebelii, odbity z fabryki Korpo.",
 			"stats": [1.0, 1.0, 0.6],
 		},
 		{
@@ -288,62 +303,62 @@ const CLASSES := [
 	],
 	[
 		{
-			"id": "grenadier", "name": "Droid liniowy", "frame": "Reg", "hp": 100.0, "speed": 1.0, "grenades": 2, "smoke": 1, "fire": 1,
+			"id": "grenadier", "name": "Analityk", "frame": "Reg", "tie": "blue", "hp": 100.0, "speed": 1.0, "grenades": 2, "smoke": 1, "fire": 1,
 			"weapons": [W.ASSAULT, W.PISTOL, W.LIGHTSABER], "sword_mult": 1.0,
-			"desc": "Podstawa armii maszyn: smukły szkielet z siłownikami, karabin szturmowy i czerwony miecz świetlny.",
+			"desc": "Podstawowa jednostka Korpo: robot w czarnym garniturze i niebieskim krawacie. Karabin szturmowy i czerwony miecz świetlny.",
 			"stats": [0.8, 0.6, 0.6],
 		},
 		{
-			"id": "hunter", "name": "Droid strzelec", "frame": "Reg", "hp": 90.0, "speed": 1.02, "grenades": 1, "smoke": 1,
+			"id": "hunter", "name": "Audytor", "frame": "Reg", "tie": "yellow", "hp": 90.0, "speed": 1.02, "grenades": 1, "smoke": 1,
 			"weapons": [W.SNIPER, W.PISTOL, W.SWORD], "sword_mult": 1.0,
-			"desc": "Droid z masztem sensorów i karabinem promieniowym. Niszczy z dużej odległości.",
+			"desc": "Żółty krawat i maszt sensorów. Audytor wylicza Cię z dużej odległości karabinem promieniowym.",
 			"stats": [1.0, 0.5, 0.65],
 		},
 		{
-			"id": "heavy", "name": "Droid ciężki", "frame": "Big", "hp": 130.0, "speed": 0.9, "grenades": 2, "fire": 1,
-			"weapons": [W.HEAVY, W.PISTOL, W.SWORD], "sword_mult": 1.0,
-			"desc": "Wielka pancerna maszyna. Wolniejsza, ale działko plazmowe zalewa ulice ogniem zaporowym.",
+			"id": "heavy", "name": "Likwidator", "frame": "Big", "tie": "red", "hp": 150.0, "speed": 0.88, "grenades": 1, "fire": 1,
+			"weapons": [W.ARM_CANNON, W.ARM_ROCKETS], "sword_mult": 1.0,
+			"desc": "Czerwony krawat i ręce zamienione w broń: działo laserowe w prawym ramieniu, wyrzutnia dwóch rakiet w lewym. Niszczy piechotę i czołgi.",
 			"stats": [0.65, 1.0, 0.4],
 		},
 		{
-			"id": "sapper", "name": "Droid komando", "frame": "Cmd", "hp": 110.0, "speed": 1.0, "grenades": 3, "fire": 2,
-			"weapons": [W.SCATTER, W.PISTOL, W.SWORD], "sword_mult": 1.0,
-			"desc": "Gładka, ciemna maszyna do walki w budynkach. Rozpylacz wiązki, granaty i ogień czyszczą pomieszczenia.",
+			"id": "servicer", "name": "Serwisant", "frame": "Reg", "tie": "green", "hp": 95.0, "speed": 1.05, "grenades": 1, "smoke": 2, "healer": true,
+			"weapons": [W.SMG2, W.PISTOL, W.SWORD], "sword_mult": 1.0,
+			"desc": "Zielony krawat. Naprawia wszystkie maszyny Korpo w pobliżu, także siebie. Trzymaj się oddziału.",
 			"stats": [0.85, 0.7, 0.5],
 		},
 		{
-			"id": "marshal", "name": "Droid dowódca", "frame": "Reg", "hp": 110.0, "speed": 1.0, "grenades": 1, "smoke": 2, "command": true,
+			"id": "marshal", "name": "Dyrektor", "frame": "Reg", "tie": "black", "hp": 110.0, "speed": 1.0, "grenades": 1, "smoke": 2, "command": true,
 			"weapons": [W.ASSAULT, W.PISTOL, W.LIGHTSABER], "sword_mult": 1.0,
-			"desc": "Klasa lidera oddziału, z anteną i grzebieniem na głowie. Z wzywa artylerię, T stawia punkt odrodzenia.",
+			"desc": "Klasa lidera oddziału: czarny krawat i anteny łączności. Z wzywa artylerię, T stawia punkt odrodzenia.",
 			"stats": [0.7, 0.7, 0.65],
 		},
 		{
-			"id": "droid_engineer", "name": "Droid inżynier", "frame": "Reg", "hp": 110.0, "speed": 1.0, "grenades": 1, "fire": 2, "builder": true,
+			"id": "droid_engineer", "name": "Technik", "frame": "Reg", "tie": "orange", "hp": 110.0, "speed": 1.0, "grenades": 1, "fire": 2, "builder": true,
 			"weapons": [W.SCATTER, W.PISTOL, W.SWORD], "sword_mult": 1.0,
-			"desc": "Maszyna budowlana Imperium. Stawia fortyfikacje i walczy rozpylaczem wiązki z bliska.",
+			"desc": "Pomarańczowy krawat. Stawia fortyfikacje Korpo i walczy rozpylaczem wiązki z bliska.",
 			"stats": [0.8, 0.65, 0.5],
 		},
 		{
-			"id": "goliat", "name": "Goliat", "hp": 430.0, "speed": 0.72, "grenades": 0, "duration": 75.0,
+			"id": "goliat", "name": "Prezes", "hp": 430.0, "speed": 0.72, "grenades": 0, "duration": 75.0,
 			"mech": true, "height": 3.4, "eye": 3.05, "radius": 0.62, "no_headshot": true, "no_sprint": true,
 			"no_jump": true, "no_crouch": true, "melee_vuln": 1.5,
 			"weapons": [W.MECH_GOLIAT, W.MECH_LAUNCHER], "sword_mult": 1.0,
-			"desc": "Czarny stalowy kolos z bliźniaczymi działami. Mniej pancerza niż Atlas, więcej ognia.",
+			"desc": "Czarny stalowy kolos zarządu z bliźniaczymi działami. Mniej pancerza niż Atlas, więcej ognia.",
 			"stats": [0.9, 0.9, 0.25],
 		},
 		{
-			"id": "phantom", "name": "Widmo", "frame": "Cmd", "hp": 100.0, "speed": 1.1, "grenades": 1, "smoke": 1, "duration": 90.0,
+			"id": "phantom", "name": "Headhunter", "frame": "Cmd", "tie": "purple", "hp": 100.0, "speed": 1.1, "grenades": 1, "smoke": 1, "duration": 90.0,
 			"cloak": true,
 			"weapons": [W.SILENT, W.PISTOL, W.SWORD], "sword_mult": 1.2,
 			"desc": "Maskowanie optyczne: niemal niewidoczne, dopóki nie strzeli lub nie oberwie.",
 			"stats": [0.8, 0.6, 0.8],
 		},
 		{
-			"id": "wolf", "name": "Wilk", "hp": 800.0, "speed": 1.0, "grenades": 0, "vehicle": true,
+			"id": "wolf", "name": "Przejęcie", "hp": 800.0, "speed": 1.0, "grenades": 0, "vehicle": true,
 			"height": 3.0, "eye": 2.9, "radius": 1.5, "no_headshot": true, "no_sprint": true, "no_jump": true,
 			"no_crouch": true, "melee_vuln": 0.8, "hit_box": Vector3(1.9, 1.15, 3.55),
 			"weapons": [W.TANK_CANNON, W.TANK_MG], "sword_mult": 1.0,
-			"desc": "Czołg antygrawitacyjny Imperium.",
+			"desc": "Czołg antygrawitacyjny Korpo. Wrogie przejęcie w praktyce.",
 			"stats": [1.0, 1.0, 0.6],
 		},
 		{
@@ -522,14 +537,22 @@ const F_CLOAK := 128
 const F_PRONE := 256
 const SLOT_PRONE := 128
 
+## Rebels go by call signs: nobody gives the machines a real name.
 const BOT_NAMES_RESISTANCE := [
-	"Miller", "Carter", "Walker", "Reed", "Hayes", "Brooks", "Cole", "Parker", "Ross", "Turner",
-	"Bennett", "Hughes", "Sanders", "Murphy", "Foster", "Mason",
+	"Iskra", "Kret", "Grom", "Lis", "Duch", "Sowa", "Kos", "Wiatr", "Bies", "Rudy",
+	"Szakal", "Borsuk", "Cień", "Żbik", "Kowal", "Zjawa",
 ]
+## Korpo units carry an employee number.
 const BOT_NAMES_EMPIRE := [
-	"ZI-117", "ZI-204", "ZI-318", "ZI-402", "ZI-566", "ZI-631", "ZI-709", "ZI-823", "ZI-914", "ZI-1022",
-	"ZI-1147", "ZI-1260", "ZI-1385", "ZI-1433", "ZI-1579", "ZI-1604",
+	"KRP-117", "KRP-204", "KRP-318", "KRP-402", "KRP-566", "KRP-631", "KRP-709", "KRP-823", "KRP-914", "KRP-1022",
+	"KRP-1147", "KRP-1260", "KRP-1385", "KRP-1433", "KRP-1579", "KRP-1604",
 ]
+## Each Korpo class wears its own tie, so a unit reads at a glance.
+const TIE_COLORS := {
+	"blue": Color(0.1, 0.24, 0.72), "yellow": Color(0.9, 0.72, 0.08), "red": Color(0.72, 0.05, 0.05),
+	"green": Color(0.08, 0.5, 0.18), "black": Color(0.02, 0.02, 0.025), "orange": Color(0.9, 0.38, 0.05),
+	"purple": Color(0.36, 0.08, 0.5),
+}
 
 const DIFFICULTIES := [
 	{"name": "Rekrut", "reaction": 0.75, "aim_error": 3.8, "burst_pause": 0.75, "turn": 3.5},

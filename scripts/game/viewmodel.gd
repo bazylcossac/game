@@ -29,6 +29,9 @@ const POSES := {
 	C.W.SNIPER: {"hip": Vector3(0.2, -0.22, -0.42), "ads": Vector3(0.0, -0.15, -0.2)},
 	C.W.HEAVY: {"hip": Vector3(0.22, -0.27, -0.46), "ads": Vector3(0.0, -0.205, -0.32)},
 	C.W.MINIGUN: {"hip": Vector3(0.26, -0.3, -0.46), "ads": Vector3(0.21, -0.31, -0.36)},
+	# The arm in use sits in front, the other one off to its side: both stay in the picture.
+	C.W.ARM_CANNON: {"hip": Vector3(0.22, -0.22, -0.36), "ads": Vector3(0.13, -0.19, -0.32)},
+	C.W.ARM_ROCKETS: {"hip": Vector3(-0.2, -0.25, -0.36), "ads": Vector3(-0.12, -0.21, -0.32)},
 	C.W.SMG: {"hip": Vector3(0.2, -0.21, -0.46), "ads": Vector3(0.0, -0.145, -0.3)},
 	C.W.MECH_GOLEM: {"hip": Vector3(0.42, -0.36, -0.7), "ads": Vector3(0.3, -0.34, -0.7)},
 	C.W.MECH_GOLIAT: {"hip": Vector3(0.42, -0.36, -0.7), "ads": Vector3(0.3, -0.34, -0.7)},
@@ -359,7 +362,7 @@ func _build_arms() -> void:
 	var right_grip := Vector3(0.28, 0, 0)
 	var left_grip := Vector3(0, 0, PI)
 	match weapon_id:
-		C.W.MECH_GOLEM, C.W.MECH_GOLIAT, C.W.MECH_LAUNCHER:
+		C.W.MECH_GOLEM, C.W.MECH_GOLIAT, C.W.MECH_LAUNCHER, C.W.ARM_CANNON, C.W.ARM_ROCKETS:
 			arm_r = Node3D.new()
 			holder.add_child(arm_r)
 			arm_l = Node3D.new()

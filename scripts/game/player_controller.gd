@@ -405,7 +405,7 @@ func _shoot() -> void:
 	var muzzle := _muzzle_position()
 	var dir := aim
 	for i in int(w.get("pellets", 1)):
-		if s.weapon_id() == C.W.AT_ROCKET or s.weapon_id() == C.W.MECH_LAUNCHER:
+		if w.get("rocket", false) or s.weapon_id() == C.W.MECH_LAUNCHER:
 			break
 		var ang := randf() * TAU
 		var off := sqrt(randf()) * cone

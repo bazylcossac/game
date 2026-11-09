@@ -8,6 +8,11 @@ const PATH := "res://assets/models/city/props.glb"
 const CHUNK := 128.0
 ## Beyond this a small prop is lost in the fog anyway.
 const SMALL_REACH := 340.0
+## Furniture inside buildings is only seen through a window from close by: it is batched in small
+## squares and stops being drawn soon, so a city of offices costs only the rooms around you.
+const INDOOR := ["office_desks", "office_shelf", "server_rack", "filing_cabinet", "reception"]
+const INDOOR_CHUNK := 40.0
+const INDOOR_REACH := 70.0
 const LARGE := ["tree_oak", "tree_slim", "tree_palm", "bus", "lamp_city", "stump_a", "field_gun", "wreck_tank", "revetment", "boulder_a", "boulder_b"]
 
 static var _meshes := {}
@@ -21,7 +26,8 @@ var _batches := {}
 func place(prop: String, xf: Transform3D, color := Color.WHITE) -> void:
 	if not enabled:
 		return
-	var key := "%s|%d|%d" % [prop, int(floor(xf.origin.x / chunk)), int(floor(xf.origin.z / chunk))]
+	var size := INDOOR_CHUNK if prop in INDOOR else chunk
+	var key := "%s|%d|%d" % [prop, int(floor(xf.origin.x / size)), int(floor(xf.origin.z / size))]
 	if not _batches.has(key):
 		_batches[key] = {"prop": prop, "items": []}
 	_batches[key]["items"].append([xf, color])
@@ -46,7 +52,11 @@ func finish(parent: Node3D) -> void:
 		var node := MultiMeshInstance3D.new()
 		node.multimesh = multi
 		node.name = "Props_%s" % batch["prop"]
-		if not batch["prop"] in LARGE:
+		if batch["prop"] in INDOOR:
+			node.visibility_range_end = INDOOR_REACH
+			node.visibility_range_end_margin = 8.0
+			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		elif not batch["prop"] in LARGE:
 			node.visibility_range_end = SMALL_REACH
 		parent.add_child(node)
 	_batches.clear()

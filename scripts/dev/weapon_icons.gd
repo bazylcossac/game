@@ -29,7 +29,13 @@ func _ready() -> void:
 				continue
 			if id == C.W.MINIGUN and team == C.Team.EMPIRE:
 				continue
+			if C.WEAPONS[id].get("arm", false) and team == C.Team.RESISTANCE:
+				continue
 			var gun := WeaponFactory.build(id, team)
+			# A weapon arm is drawn alone, without the other arm beside it.
+			for spare: String in ["OtherArm", "OtherCell"]:
+				if gun.get_node_or_null(spare):
+					gun.get_node(spare).free()
 			view.add_child(gun)
 			# Blades stand upright on their models. Laid down, they read like every other icon.
 			if C.WEAPONS[id]["melee"]:

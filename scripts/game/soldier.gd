@@ -347,8 +347,12 @@ func _apply_class(new_class: int) -> void:
 	var perks: Array = []
 	if not kit.is_empty() and new_class < C.NORMAL_CLASSES:
 		var primary: int = kit["primary"]
-		var melee: int = primary if C.WEAPONS[primary]["melee"] else int(cd["weapons"][2])
-		loadout = [primary, kit["sidearm"], melee]
+		if (cd["weapons"] as Array).size() < 3:
+			# Weapons built into the body: no blade to carry, and no other gun to swap in.
+			loadout = [primary, kit["sidearm"]]
+		else:
+			var melee: int = primary if C.WEAPONS[primary]["melee"] else int(cd["weapons"][2])
+			loadout = [primary, kit["sidearm"], melee]
 		parts = [kit["parts_p"], kit["parts_s"], [], []]
 		perks = kit["perks"]
 	if new_class == 0 and kit.get("ordnance", "grenades") == "rockets":

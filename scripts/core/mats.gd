@@ -37,7 +37,7 @@ static func tex(name: String) -> Texture2D:
 static func world(key: String) -> Material:
 	if _world.has(key):
 		return _world[key]
-	var lights := {"neon_cyan": Color(0.04, 0.8, 1), "neon_pink": Color(1, 0.06, 0.38), "neon_amber": Color(1, 0.55, 0.1), "leaf_cyan": Color(0.06, 0.5, 0.56), "leaf_pink": Color(0.6, 0.1, 0.36), "window_blue": Color(0.18, 0.38, 0.6), "station_light": Color(0.6, 0.8, 1), "amber_light": Color(1, 0.62, 0.22), "reactor_glass": Color(0.02, 0.5, 0.75)}
+	var lights := {"neon_cyan": Color(0.04, 0.8, 1), "neon_pink": Color(1, 0.06, 0.38), "neon_amber": Color(1, 0.55, 0.1), "leaf_cyan": Color(0.06, 0.5, 0.56), "leaf_pink": Color(0.6, 0.1, 0.36), "window_blue": Color(0.18, 0.38, 0.6), "station_light": Color(0.6, 0.8, 1), "amber_light": Color(1, 0.62, 0.22), "reactor_glass": Color(0.02, 0.5, 0.75), "office_light": Color(0.8, 0.88, 1.0)}
 	if lights.has(key):
 		var light_mat := glow(lights[key], 0.7 if key in ["window_blue", "reactor_glass", "leaf_cyan", "leaf_pink"] else 2.2)
 		_world[key] = light_mat

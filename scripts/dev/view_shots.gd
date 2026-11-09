@@ -4,6 +4,7 @@ extends Node
 
 const GUNS := [
 	[0, 0, "mech", {}], [0, 0, "karabinek", {}], [1, 2, "dzialko", {}], [0, 2, "karabin", {}], [1, 1, "promieniowy", {}], [0, 0, "wyrzutnia", {"ordnance": "rockets"}], [1, 0, "wyrzutnia_imperium", {"ordnance": "rockets"}], [1, 0, "szturmowy", {}], [0, 5, "minigun", {}], [1, 5, "droid_inzynier", {}],
+	[1, 2, "likwidator_dzialo", {}], [1, 2, "likwidator_rakiety", {"slot": 1, "parts_s": ["pod_third"]}], [0, 5, "minigun_lufy", {"parts_p": ["mg_cool", "mg_spin"]}],
 	[0, 0, "kolimator", {"parts_p": ["reddot"]}], [0, 0, "holo", {"parts_p": ["holo"]}], [1, 0, "kolimator_imperium", {"parts_p": ["reddot"]}],
 	[0, 0, "pistolet", {"slot": 1}], [1, 0, "pistolet_imperium", {"slot": 1}],
 ]

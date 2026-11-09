@@ -49,6 +49,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_parse_args()
 	_build_input_map()
+	_carry_over_saves()
 	load_settings()
 	T.setup(language)
 	if has_arg("token"):
@@ -108,6 +109,20 @@ func _build_input_map() -> void:
 		var ev := InputEventMouseButton.new()
 		ev.button_index = pair[1]
 		InputMap.action_add_event(pair[0], ev)
+
+
+## The game was called Miecz Dawida until 0.13.0, and Godot keeps its files in a folder named after
+## the game. The first start under the new name copies the settings and the progress across.
+func _carry_over_saves() -> void:
+	var here := OS.get_user_data_dir()
+	var old := here.get_base_dir().path_join("Miecz Dawida")
+	if here.ends_with("Miecz Dawida") or not DirAccess.dir_exists_absolute(old):
+		return
+	for file: String in ["settings.cfg", "progress.cfg"]:
+		var from := old.path_join(file)
+		var to := here.path_join(file)
+		if FileAccess.file_exists(from) and not FileAccess.file_exists(to):
+			DirAccess.copy_absolute(from, to)
 
 
 func load_settings() -> void:

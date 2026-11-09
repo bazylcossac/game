@@ -31,7 +31,7 @@ PALETTE.update({
     RUBBER: ((0.015, 0.015, 0.016), 0, 0.84, 0), LEATHER: ((0.07, 0.045, 0.03), 0, 0.62, 0), METAL: ((0.3, 0.31, 0.33), 0.85, 0.4, 0),
     VISOR: ((0.02, 0.04, 0.06), 0.5, 0.08, 0), CORE: ((0.2, 0.6, 1.0), 0, 0.4, 3), "_Worn": ((1, 0, 1), 0, 1, 0),
     "MedicCloth": ((0.6, 0.6, 0.62), 0, 0.85, 0), "Camouflage": ((0.14, 0.16, 0.09), 0, 0.92, 0), "Canister": ((0.26, 0.24, 0.14), 0.4, 0.5, 0),
-    "CommandMark": ((0.75, 0.75, 0.72), 0, 0.7, 0),
+    "CommandMark": ((0.75, 0.75, 0.72), 0, 0.7, 0), "Hood": ((0.07, 0.065, 0.055), 0, 0.92, 0), "Armband": ((0.42, 0.04, 0.03), 0, 0.85, 0),
 })
 
 
@@ -189,6 +189,8 @@ def upper_arm():
         [(0.054, -0.03, -0.044), (0.074, -0.03, 0.0), (0.054, -0.03, 0.044), (0.04, -0.03, 0.0)],
         [(0.05, -0.13, -0.04), (0.068, -0.13, 0.0), (0.05, -0.13, 0.04), (0.038, -0.13, 0.0)],
     ], DARK_CLOTH, (0, 1, 2, 3), level=1, bevel=0.0)
+    # The red band of the Rebellion, tied round each arm.
+    cloth(part, "Armband", [(-0.13, 0.071, 0.073, 0, 0), (-0.09, 0.072, 0.074, 0, 0), (-0.05, 0.072, 0.074, 0, 0)], "Armband", 18, 0.012, 0.0014, 3.3)
 
 
 def forearm():
@@ -282,33 +284,50 @@ def face_mask(part):
     ], RUBBER, (), level=2, bevel=0.0)
 
 
+def hood_shell(part, name, stations, mat, a0=328.0, a1=572.0, steps=22, thick=0.008, seed=1.0):
+    """Cloth that wraps round the back and sides of the head and leaves the face open.
+    Stations: (y, rx, rz, cz). The angles run round Y with -Z, the face, at 270 degrees."""
+    outer, inner = [], []
+    for y, rx, rz, cz in stations:
+        o, i = [], []
+        for k in range(steps + 1):
+            a = math.radians(a0 + (a1 - a0) * k / steps)
+            c, n = math.cos(a), math.sin(a)
+            fold = 1.0 + 0.045 * math.sin(a * 5 + y * 40 + seed) * min(1.0, max(0.0, (0.22 - y) * 6))
+            ex, ez = math.copysign(abs(c) ** (2 / 2.2), c), math.copysign(abs(n) ** (2 / 2.2), n)
+            o.append((rx * fold * ex, y, cz + rz * fold * ez))
+            i.append(((rx * fold - thick) * ex, y, cz + (rz * fold - thick) * ez))
+        outer.append(o)
+        inner.append(i)
+    m = steps + 1
+    rows = len(stations)
+    verts = [B(p) for r in outer for p in r] + [B(p) for r in inner for p in r]
+    base = rows * m
+    faces = []
+    for r in range(rows - 1):
+        for k in range(m - 1):
+            q = (r * m + k, r * m + k + 1, (r + 1) * m + k + 1, (r + 1) * m + k)
+            faces.append(q)
+            faces.append(tuple(base + v for v in reversed(q)))
+        for k in (0, m - 1):
+            faces.append((r * m + k, (r + 1) * m + k, base + (r + 1) * m + k, base + r * m + k))
+    for r in (0, rows - 1):
+        for k in range(m - 1):
+            faces.append((r * m + k, base + r * m + k, base + r * m + k + 1, r * m + k + 1))
+    obj = add(part, name, verts, faces, mat)
+    outward(obj)
+    return obj
+
+
 def resistance_head():
+    """The last humans: a deep hood, a respirator for the poisoned air, scavenged goggles."""
     part = "Head"
     face_mask(part)
-
-    def rim(a):
-        # Front brow, cut high over the ears, lower at the back of the neck.
-        front = max(0.0, -math.sin(a)) ** 2
-        back = max(0.0, math.sin(a)) ** 2
-        ear = abs(math.cos(a)) ** 6
-        return 0.11 + 0.03 * front - 0.11 * back + 0.015 * ear
-
-    rings = [dome_ring(t, 0.131, 0.145, 0.262, rim, 0.0, 0.012) for t in (0.0, 0.12, 0.3, 0.5, 0.7, 0.86, 0.96)]
-    shell = hard(part, "Helmet", rings, HELMET, (), level=1, bevel=0.0)
-    lip = [[(p[0] * 1.02, p[1] + dy, (p[2] - 0.012) * 1.02 + 0.012) for p in rings[0]] for dy in (0.0, 0.008)]
-    sculpt(part, "Helmet edge", lip + [[(p[0] * 0.96, p[1] + 0.008, (p[2] - 0.012) * 0.96 + 0.012) for p in rings[0]]], RUBBER, (), level=0, bevel=0.0)
-    for side in (1, -1):
-        slab(part, f"Side rail {side}", [(0.1, 0.11), (-0.09, 0.126), (-0.1, 0.156), (0.086, 0.138)], *sorted((side * 0.126, side * 0.138)), METAL, 0.002)
-        for z in (-0.05, 0.0, 0.05):
-            profile(part, "Rail slot", [(z - 0.012, 0.13), (z + 0.012, 0.128), (z + 0.012, 0.136), (z - 0.012, 0.138)], 0.002, RUBBER, 0, x=side * 0.138)
-        # Ear cups, with a boom on one side.
-        hard(part, f"Ear cup {side}", [
-            [(side * 0.1, 0.03, -0.022), (side * 0.1, 0.03, 0.05), (side * 0.1, 0.104, 0.05), (side * 0.1, 0.104, -0.022)],
-            [(side * 0.146, 0.044, -0.008), (side * 0.146, 0.044, 0.036), (side * 0.146, 0.09, 0.036), (side * 0.146, 0.09, -0.008)],
-        ], RUBBER, (), level=2, bevel=0.0)
-        ribbon(part, "Chin strap", [(side * 0.094, 0.06, -0.01), (side * 0.076, -0.01, -0.03), (side * 0.03, -0.042, -0.07)], 0.018, 0.004, WEB, (0, 0, 1))
-    tube(part, "Boom mic", [(0.144, 0.058, -0.0), (0.116, 0.02, -0.09), (0.05, -0.002, -0.128)], 0.0035, RUBBER, 5)
-    # Goggles: frame and two lenses behind a strap.
+    shell = hood_shell(part, "Hood", [
+        (0.3, 0.02, 0.024, 0.01), (0.29, 0.07, 0.08, 0.012), (0.26, 0.112, 0.124, 0.012), (0.2, 0.134, 0.146, 0.016),
+        (0.12, 0.138, 0.15, 0.02), (0.04, 0.13, 0.142, 0.03), (-0.03, 0.15, 0.15, 0.05), (-0.07, 0.19, 0.17, 0.07),
+    ], "Hood", 332.0, 568.0, seed=0.6, thick=0.014)
+    # Goggles: frame and two lenses behind a strap, the lenses lit faintly from the inside.
     hard(part, "Goggle frame", [
         [(-0.104, 0.086, -0.078), (0.104, 0.086, -0.078), (0.108, 0.136, -0.078), (-0.108, 0.136, -0.078)],
         [(-0.094, 0.09, -0.116), (0.094, 0.09, -0.116), (0.098, 0.132, -0.118), (-0.098, 0.132, -0.118)],
@@ -320,9 +339,12 @@ def resistance_head():
             [(x - 0.034, 0.098, -0.122), (x + 0.034, 0.098, -0.122), (x + 0.034, 0.125, -0.124), (x - 0.034, 0.125, -0.124)],
         ], VISOR, (0, 1, 2, 3), level=0, bevel=0.0)
     profile(part, "Lens glow", [(-0.1245, 0.106), (-0.1205, 0.106), (-0.1205, 0.109), (-0.1245, 0.109)], 0.03, CORE, 0, x=0.0)
-    ribbon(part, "Goggle strap", [(-0.112, 0.116, -0.07), (-0.134, 0.126, 0.02), (-0.08, 0.14, 0.14), (0.08, 0.14, 0.14), (0.134, 0.126, 0.02), (0.112, 0.116, -0.07)], 0.03, 0.003, WEB)
-    # Night vision mount and a cover band.
-    profile(part, "Mount", [(-0.13, 0.15), (-0.09, 0.15), (-0.09, 0.2, 0.006), (-0.122, 0.196, 0.006)], 0.03, METAL, 0.002)
+    # Respirator cans either side of the mask, the way people breathe in a city the machines run.
+    for side in (1, -1):
+        turned(part, f"Filter {side}", [(-0.112, 0.0), (-0.114, 0.026), (-0.15, 0.028), (-0.156, 0.024), (-0.158, 0.0)], "Canister", 14, side * 0.062, 0.02)
+        turned(part, f"Filter grille {side}", [(-0.157, 0.02), (-0.161, 0.02), (-0.162, 0.0)], RUBBER, 12, side * 0.062, 0.02)
+    # A scarf wound round the neck, the end of it tucked under the hood.
+    cloth(part, "Scarf", [(-0.06, 0.1, 0.098, 0, 0.008), (-0.02, 0.098, 0.1, 0, 0.0), (0.03, 0.086, 0.092, 0, -0.004)], "Armband", 20, 0.012, 0.004, 2.2)
     return shell
 
 

@@ -448,7 +448,7 @@ func _fill_arsenal(box: VBoxContainer) -> void:
 	box.add_child(UiKit.rule())
 	var keys := _gun_keys()
 	var picks: Array = []
-	for w: int in (Gear.primaries(_team(), class_id) if _gun_key == "primary" else Gear.SIDEARMS):
+	for w: int in (Gear.primaries(_team(), class_id) if _gun_key == "primary" else Gear.sidearms(_team(), class_id)):
 		picks.append({"id": w, "name": C.WEAPONS[w]["name"], "level": Gear.weapon_level(w), "desc": _weapon_desc(w)})
 	box.add_child(UiKit.label("MODEL", 24, UiKit.BRASS, "bold"))
 	box.add_child(_options(picks, kit[keys[0]], func(id: Variant) -> void:

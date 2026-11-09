@@ -1,7 +1,7 @@
 class_name SoldierModel
 extends Node3D
 ## Third-person body assembled from primitives and animated procedurally.
-## Both sides wear full helmets and goggles: they read as uniforms, not as faces.
+## The Rebellion hides behind hoods and respirators; Korpo's machines wear suits and a porcelain face.
 ##
 ## Axis conventions, since every pose depends on them. The body faces -Z.
 ##   hip.rotation.x    positive swings the thigh forward.
@@ -26,10 +26,12 @@ const DETAIL_RANGE := 42.0
 ## Class id to its modelled kit in trooper_parts.glb.
 const GEAR_MODELS := {
 	"medic": "Gear_medic", "sniper": "Gear_sniper", "engineer": "Gear_engineer", "maccabee": "Gear_maccabee",
-	"commander": "Gear_leader", "hunter": "Gear_hunter", "marshal": "Gear_marshal",
+	"commander": "Gear_leader", "hunter": "Gear_hunter", "marshal": "Gear_marshal", "servicer": "Gear_servicer",
 }
 const TROOPER_MODEL := "res://assets/models/armory/trooper_parts.glb"
 const DROID_MODEL := "res://assets/models/armory/droid_parts.glb"
+## Where the liquidator's weapon arms end, below the elbow: the cannon's bore and the pod's tubes.
+const ARM_MUZZLE := {C.W.ARM_CANNON: Vector3(0.0, -0.56, 0.0), C.W.ARM_ROCKETS: Vector3(0.0, -0.49, -0.07)}
 ## A heavy droid stands this much taller than the others, on the same skeleton.
 const BIG_FRAME_SCALE := 1.13
 
@@ -132,9 +134,10 @@ static func warm_bodies() -> void:
 				continue
 			if cd.has("frame"):
 				m._apply_frame(cd["frame"])
-			m._build_gear(String(cd["id"]))
+			m._build_gear(cd)
 			for weapon: int in cd["weapons"]:
-				WeaponFactory.third_person(weapon, team).free()
+				if not C.WEAPONS[weapon].get("arm", false):
+					WeaponFactory.third_person(weapon, team).free()
 		m.free()
 
 
@@ -152,17 +155,18 @@ static func _fine(mi: MeshInstance3D) -> MeshInstance3D:
 func setup(new_team: int) -> void:
 	team = new_team
 	var empire := team == C.Team.EMPIRE
-	var coat: Material = Mats.flat(Color(0.5, 0.49, 0.45), 0.5, 0.4) if empire else _cloth(Color(0.23, 0.29, 0.39))
-	var coat_dark: Material = Mats.flat(Color(0.2, 0.2, 0.21), 0.5, 0.6) if empire else _cloth(Color(0.15, 0.2, 0.29))
-	var trousers: Material = Mats.flat(Color(0.42, 0.41, 0.38), 0.5, 0.5) if empire else _cloth(Color(0.29, 0.27, 0.22))
-	var leather: Material = Mats.flat(Color(0.1, 0.09, 0.085) if empire else Color(0.27, 0.18, 0.11), 0.46)
-	var strap: Material = Mats.flat(Color(0.13, 0.12, 0.11) if empire else Color(0.34, 0.29, 0.2), 0.7)
-	var helmet: Material = Mats.flat(Color(0.23, 0.25, 0.24) if empire else Color(0.33, 0.39, 0.45), 0.46, 0.45)
+	# The cheap far body, in the same colours as the modelled one: black suits, or patched cloth.
+	var coat: Material = _cloth(Color(0.07, 0.07, 0.08)) if empire else _cloth(Color(0.3, 0.28, 0.22))
+	var coat_dark: Material = _cloth(Color(0.04, 0.04, 0.05)) if empire else _cloth(Color(0.2, 0.19, 0.16))
+	var trousers: Material = _cloth(Color(0.07, 0.07, 0.08)) if empire else _cloth(Color(0.2, 0.23, 0.28))
+	var leather: Material = Mats.flat(Color(0.03, 0.03, 0.03) if empire else Color(0.27, 0.18, 0.11), 0.3 if empire else 0.46)
+	var strap: Material = Mats.flat(Color(0.05, 0.05, 0.06) if empire else Color(0.34, 0.29, 0.2), 0.7)
+	var helmet: Material = Mats.flat(Color(0.78, 0.76, 0.72), 0.3, 0.05) if empire else _cloth(Color(0.2, 0.19, 0.16))
 	var mask: Material = _cloth(Color(0.08, 0.08, 0.085))
 	var metal: Material = Mats.flat(Color(0.42, 0.44, 0.47), 0.36, 0.85)
-	var glow: Material = Mats.glow(C.TEAM_COLORS[team], 1.8)
-	var scarf: Material = _cloth(Color(0.5, 0.12, 0.1) if empire else Color(0.86, 0.88, 0.93))
-	var accent: Material = _cloth(Color(0.62, 0.15, 0.11) if empire else Color(0.1, 0.3, 0.72))
+	var glow: Material = Mats.glow(C.TEAM_COLORS[team], 2.4 if empire else 1.8)
+	var scarf: Material = _cloth(Color(0.86, 0.86, 0.85) if empire else Color(0.62, 0.07, 0.05))
+	var accent: Material = _cloth(Color(0.04, 0.04, 0.05) if empire else Color(0.62, 0.07, 0.05))
 
 	pelvis = Node3D.new()
 	pelvis.position.y = STAND_HIP
@@ -341,7 +345,7 @@ func set_loadout(new_weapon: int, class_id: int, parts: Array = []) -> void:
 	var cd := C.cls(team, class_id)
 	if cd.has("frame"):
 		_apply_frame(cd["frame"])
-	_build_gear(String(cd["id"]))
+	_build_gear(cd)
 	_cloak_shown = -1.0
 
 
@@ -377,7 +381,8 @@ func _apply_frame(frame: String) -> void:
 
 
 ## Class gear hung on the shared body, so a class reads at a glance from a distance.
-func _build_gear(id: String) -> void:
+func _build_gear(cd: Dictionary) -> void:
+	var id := String(cd["id"])
 	if _gear:
 		_gear.free()
 	if _head_gear:
@@ -393,9 +398,20 @@ func _build_gear(id: String) -> void:
 		_head_gear = Node3D.new()
 		head.add_child(_head_gear)
 		_fit_gear(model + "_head", _head_gear)
+	if cd.has("tie"):
+		# Korpo's rank and trade: one tie per class, the only colour on a black suit.
+		var tie := Node3D.new()
+		_gear.add_child(tie)
+		_fit_gear("Tie_Big" if cd.get("frame", "") == "Big" else "Tie", tie)
+		var silk: Material = Mats.flat(C.TIE_COLORS[cd["tie"]], 0.38, 0.05)
+		for mi: MeshInstance3D in tie.find_children("*", "MeshInstance3D", true, false):
+			var current := mi.material_override as StandardMaterial3D
+			# Everything but the chrome clip takes the class colour.
+			if current and current.metallic < 0.5:
+				mi.material_override = silk
 	var glow: Material = Mats.glow(C.TEAM_COLORS[team], 1.8)
 	match id:
-		"medic":
+		"medic", "servicer":
 			var green: Material = Mats.glow(Color(0.3, 1.0, 0.5), 2.0)
 			P.box(_gear, Vector3(0.16, 0.042, 0.006), Vector3(0, 0.3, 0.348), green)
 			P.box(_gear, Vector3(0.042, 0.16, 0.006), Vector3(0, 0.3, 0.348), green)
@@ -449,8 +465,18 @@ func set_weapon(id: int, parts: Array = []) -> void:
 	weapon_parts = parts
 	if weapon_node:
 		weapon_node.queue_free()
-	weapon_node = WeaponFactory.third_person(id, team, parts)
-	holder.add_child(weapon_node)
+	if C.WEAPONS[id].get("arm", false):
+		# The weapon is the forearm itself: only the point the shots leave from is added.
+		weapon_node = Node3D.new()
+		weapon_node.name = "Weapon"
+		var muzzle := Marker3D.new()
+		muzzle.name = "Muzzle"
+		muzzle.position = ARM_MUZZLE[id]
+		weapon_node.add_child(muzzle)
+		(elbow_l if id == C.W.ARM_ROCKETS else elbow_r).add_child(weapon_node)
+	else:
+		weapon_node = WeaponFactory.third_person(id, team, parts)
+		holder.add_child(weapon_node)
 	_pose_for_weapon()
 
 
@@ -462,6 +488,12 @@ func _pose_for_weapon() -> void:
 			_low_pos = Vector3(0.12, 0.2, -0.3)
 			_grip_r = Vector3(0, -0.01, 0.02)
 			_grip_l = Vector3(-0.02, -0.05, 0.05)
+		C.W.ARM_CANNON, C.W.ARM_ROCKETS:
+			# Both weapon arms come up and point at the target, the way a war machine aims.
+			_aim_pos = Vector3(0.0, 0.42, -0.26)
+			_low_pos = Vector3(0.0, 0.3, -0.24)
+			_grip_r = Vector3(0.24, 0.0, -0.16)
+			_grip_l = Vector3(-0.24, 0.0, -0.16)
 		C.W.HEAVY, C.W.MINIGUN:
 			_aim_pos = Vector3(0.1, 0.27, -0.2)
 			_low_pos = Vector3(0.1, 0.2, -0.18)

@@ -10,7 +10,7 @@ const DEFAULT_SEED := 1943
 
 const MAPS := {
 	"dolina_pancerna": {"name": "Dolina Pancerna", "desc": "Duże pole walki 1020 × 900 m. Bazy za grzbietami, boczne wyjazdy i trzy cele."},
-	"neonowa_dzielnica": {"name": "Neonowa Dzielnica", "desc": "Deszczowa noc w śródmieściu 520 × 700 m: szerokie aleje, wieżowce i kolej nad bulwarem. Miejsca dość dla czołgów i mechów."},
+	"neonowa_dzielnica": {"name": "Corp City", "desc": "Noc w stolicy Korpo, 520 × 700 m: mokre aleje, neony, biurowce z otwartymi parterami i reklamy maszyn nad głową. Miejsca dość dla czołgów i mechów."},
 	"stacja_rdzen": {"name": "Stacja Rdzeń", "desc": "Reaktor z galerią, kapsuły kriogeniczne po zachodniej stronie i labirynt kontenerów po wschodniej."},
 	"stare_miasto": {"name": "Stare Miasto", "desc": "Zrujnowane miasto: ulice, ratusz, dworzec i rynek."},
 	"ziemia_niczyja": {"name": "Ziemia Niczyja", "desc": "Front w błocie i deszczu, 720 × 600 m: dwie linie okopów na stronę, zasieki, leje po pociskach i burza nad głową."},

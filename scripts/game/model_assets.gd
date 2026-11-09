@@ -15,12 +15,14 @@ const GUN_FINISH := {
 	"SmokeGrey": [Color(0.86, 0.86, 0.88), 0.6, 0.1, 6.0],
 	"WarningRed": [Color(0.85, 0.14, 0.08), 0.5, 0.1, 6.0],
 }
-## The three machine frames. Material name in droid_parts.glb: colour, roughness, metallic.
+## Korpo's machines in droid_parts.glb. Material name: colour, roughness, metallic, and whether it
+## takes the cloth weave instead of the machined grain.
 const DROID_FINISH := {
-	"DroidPlate_Reg": [Color(0.86, 0.83, 0.74), 0.46, 0.28], "DroidPlate2_Reg": [Color(0.5, 0.5, 0.49), 0.5, 0.4], "DroidFrame_Reg": [Color(0.24, 0.24, 0.25), 0.44, 0.75],
-	"DroidPlate_Big": [Color(0.44, 0.46, 0.49), 0.44, 0.45], "DroidPlate2_Big": [Color(0.62, 0.16, 0.12), 0.46, 0.35], "DroidFrame_Big": [Color(0.16, 0.16, 0.18), 0.44, 0.75],
-	"DroidPlate_Cmd": [Color(0.3, 0.32, 0.37), 0.36, 0.55], "DroidPlate2_Cmd": [Color(0.5, 0.13, 0.1), 0.42, 0.4], "DroidFrame_Cmd": [Color(0.09, 0.09, 0.11), 0.46, 0.7],
-	"DroidMetal": [Color(0.72, 0.73, 0.76), 0.32, 0.9], "DroidCommand": [Color(0.72, 0.16, 0.1), 0.48, 0.3],
+	"Suit": [Color(0.075, 0.075, 0.085), 0.66, 0.0, true], "SuitSatin": [Color(0.04, 0.04, 0.046), 0.32, 0.15, false],
+	"Shirt": [Color(0.86, 0.86, 0.85), 0.62, 0.0, true], "DroidShell": [Color(0.05, 0.05, 0.058), 0.2, 0.8, false],
+	"DroidFace": [Color(0.8, 0.78, 0.74), 0.3, 0.05, false], "Shoe": [Color(0.035, 0.032, 0.032), 0.2, 0.1, false],
+	"DroidMetal": [Color(0.72, 0.73, 0.76), 0.18, 0.95, false], "DroidGun": [Color(0.26, 0.27, 0.3), 0.3, 0.8, false],
+	"Gold": [Color(0.86, 0.62, 0.22), 0.26, 0.95, false], "Tie": [Color(0.7, 0.7, 0.7), 0.4, 0.0, false],
 }
 static var _surfaces := {}
 static var _loaded := {}
@@ -81,7 +83,7 @@ static func _material(mat: StandardMaterial3D, team: int, body: bool) -> Materia
 		return Mats.flat(Color(.25, .28, .3))
 	var key := mat.resource_name
 	if key.begins_with("EnergyIndicator"):
-		return Mats.glow(C.TEAM_COLORS[team], 1.2)
+		return Mats.glow(C.TEAM_COLORS[team], 2.4 if body and team == C.Team.EMPIRE else 1.2)
 	# Night-sight beads: bright enough to find the sight on a dark street.
 	if key.begins_with("SightDot"):
 		return Mats.glow(Color(0.42, 1.0, 0.5), 2.2)
@@ -90,7 +92,7 @@ static func _material(mat: StandardMaterial3D, team: int, body: bool) -> Materia
 	return _body_finish(key.get_slice(".", 0), team, mat)
 
 
-## American camouflage, or plain cloth for the Empire. Baked vertex colours shade the folds.
+## The Rebellion's patched cloth, or plain cloth for Korpo. Baked vertex colours shade the folds.
 static func _uniform(dark: bool, plain: Color) -> StandardMaterial3D:
 	if dark:
 		return Mats.cloth(plain)
@@ -100,7 +102,7 @@ static func _uniform(dark: bool, plain: Color) -> StandardMaterial3D:
 	return m
 
 
-## The trooper's colours per side, as [USA, Empire].
+## The trooper's colours per side, as [Rebellion, Korpo].
 static func _body_finish(key: String, team: int, source: StandardMaterial3D) -> Material:
 	var cache := "%d/%s" % [team, key]
 	if not _finishes.has(cache):
@@ -108,16 +110,24 @@ static func _body_finish(key: String, team: int, source: StandardMaterial3D) -> 
 		var m: StandardMaterial3D
 		if DROID_FINISH.has(key):
 			var finish: Array = DROID_FINISH[key]
-			m = Mats.gun(finish[0], finish[1], finish[2]).duplicate() as StandardMaterial3D
+			m = (Mats.cloth(finish[0]) if finish[3] else Mats.gun(finish[0], finish[1], finish[2])).duplicate() as StandardMaterial3D
+			m.roughness = finish[1]
+			m.metallic = finish[2]
+			if key == "Suit":
+				# A cold sheen along the shoulders, so a black suit still reads at night.
+				m.rim = 0.3
+				m.rim_tint = 0.2
 			m.vertex_color_use_as_albedo = true
 			_finishes[cache] = m
 			return m
 		match key:
 			"Cloth_Main": m = _uniform(dark, Color(0.3, 0.33, 0.28))
-			"Cloth_Dark": m = Mats.cloth(Color(0.19, 0.21, 0.18) if dark else Color(0.34, 0.3, 0.22))
-			"Trouser": m = _uniform(dark, Color(0.25, 0.27, 0.23))
-			"Webbing": m = Mats.cloth(Color(0.17, 0.18, 0.16) if dark else Color(0.36, 0.31, 0.22))
-			"ArmorPlate": m = Mats.gun(Color(0.27, 0.28, 0.27), 0.5, 0.2) if dark else Mats.cloth(Color(0.33, 0.29, 0.21))
+			"Cloth_Dark": m = Mats.cloth(Color(0.19, 0.21, 0.18) if dark else Color(0.2, 0.18, 0.15))
+			"Trouser": m = Mats.cloth(Color(0.25, 0.27, 0.23) if dark else Color(0.2, 0.18, 0.15))
+			"Hood": m = Mats.cloth(Color(0.2, 0.19, 0.16))
+			"Armband": m = Mats.cloth(Color(0.62, 0.07, 0.05))
+			"Webbing": m = Mats.cloth(Color(0.17, 0.18, 0.16) if dark else Color(0.24, 0.22, 0.16))
+			"ArmorPlate": m = Mats.gun(Color(0.27, 0.28, 0.27), 0.5, 0.2) if dark else Mats.gun(Color(0.3, 0.27, 0.23), 0.62, 0.35)
 			"HelmetShell": m = Mats.gun(Color(0.25, 0.27, 0.26), 0.48, 0.25) if dark else _uniform(false, Color.WHITE)
 			"Rubber": m = Mats.gun(Color(0.08, 0.08, 0.085), 0.8, 0.0)
 			"Leather": m = Mats.gun(Color(0.13, 0.12, 0.11) if dark else Color(0.4, 0.33, 0.23), 0.6, 0.0)

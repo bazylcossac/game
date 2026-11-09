@@ -407,7 +407,7 @@ func spawn_shot(weapon_id: int, team: int, from: Vector3, to: Vector3, kind: int
 	b.own = own
 	b.instant = weapon_id == C.W.SNIPER
 	b.life = 0.09 if b.instant else 0.12
-	b.length = minf(b.dist, 3.8 if weapon_id in [C.W.TANK_CANNON, C.W.MECH_GOLEM, C.W.MECH_GOLIAT, C.W.HEAVY, C.W.MINIGUN] else 1.8)
+	b.length = minf(b.dist, 3.8 if weapon_id in [C.W.TANK_CANNON, C.W.MECH_GOLEM, C.W.MECH_GOLIAT, C.W.HEAVY, C.W.MINIGUN, C.W.ARM_CANNON] else 1.8)
 	b.done = false
 	b.mesh.visible = true
 	var col: Color = C.TEAM_BEAM[team]

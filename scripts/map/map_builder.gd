@@ -157,7 +157,8 @@ func add_prism(center: Vector3, radius: float, height: float, sides: int, mat: S
 		add_tri(t1, t0, b0, mat, tint, solid)
 		add_tri(t1, b0, b1, mat, tint, solid)
 		add_tri(center + Vector3.UP * height, t0, t1, mat, tint, solid)
-	if solid:
+	# A prism that starts overhead, like a tower on top of an office floor, blocks nobody's way.
+	if solid and center.y - floor_y < 1.9:
 		block_footprint(Transform3D(Basis.IDENTITY, center), radius, radius)
 
 

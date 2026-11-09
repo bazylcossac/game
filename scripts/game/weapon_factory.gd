@@ -48,6 +48,11 @@ static func build(weapon_id: int, team: int, parts: Array = []) -> Node3D:
 		for id: Variant in parts:
 			_add_part(root, weapon_id, team, str(id))
 		return root
+	if C.WEAPONS[weapon_id].get("arm", false):
+		_arms(root, weapon_id, team)
+		for id: Variant in parts:
+			_add_part(root, weapon_id, team, str(id))
+		return root
 	match weapon_id:
 		C.W.PISTOL: _pistol(root, team)
 		C.W.CARBINE: _carbine(root, team)
@@ -139,7 +144,78 @@ static func _iron(r: Node3D, y: float, z: float, team: int) -> void:
 	P.box(n, Vector3(0.0016, 0.0016, 0.002), Vector3(0, y, z), _core(team))
 
 
+## Korpo's liquidator: the weapon in use straight ahead, the other arm beside it. Both come from
+## the droid model, so first person shows the same arms everyone else sees.
+const ARM_SPLIT := 0.42
+const ARM_TIPS := {C.W.ARM_CANNON: Vector3(0.0, 0.0, -0.4), C.W.ARM_ROCKETS: Vector3(0.0, 0.07, -0.33)}
+
+
+static func _arms(root: Node3D, weapon: int, team: int) -> void:
+	var imported := ModelAssets.load_model(SoldierModel.DROID_MODEL, team, true)
+	var rockets := weapon == C.W.ARM_ROCKETS
+	var place := func(label: String, name: String, at: Vector3) -> void:
+		var part := imported.find_child(label, true, false) as Node3D
+		part.reparent(root, false)
+		part.name = name
+		part.transform = Transform3D(Basis.IDENTITY, at)
+		ModelAssets.flatten(part)
+	var other := Vector3(ARM_SPLIT if rockets else -ARM_SPLIT, -0.02, 0.06)
+	place.call("FP_ArmCannon", "Body" if not rockets else "OtherArm", Vector3.ZERO if not rockets else other)
+	place.call("FP_ArmPod", "Body" if rockets else "OtherArm", Vector3.ZERO if rockets else other)
+	# The warheads are the "cell" of the pod: they drop out and come back on a reload.
+	place.call("FP_ArmPod_Cell", "Cell" if rockets else "OtherCell", Vector3.ZERO if rockets else other)
+	imported.free()
+	_muzzle(root, ARM_TIPS[weapon])
+
+
+## New parts for the heavy weapons, built here rather than modelled: sleeves, coils and pods.
+static func _heavy_part(r: Node3D, weapon: int, team: int, id: String) -> void:
+	var lit := _core(team)
+	match id:
+		"mg_cool", "mg_heavy":
+			var n := _part(r, "barrel", Vector3(0, 0.07, -0.42))
+			for i in 4:
+				var z := -0.04 - i * 0.07
+				if id == "mg_cool":
+					P.cyl(n, 0.074, 0.074, 0.03, Vector3(0, 0, z), _gun_metal(), Vector3(PI * 0.5, 0, 0), Vector3.ONE, 16)
+					P.cyl(n, 0.076, 0.076, 0.006, Vector3(0, 0, z + 0.02), lit, Vector3(PI * 0.5, 0, 0), Vector3.ONE, 16)
+				else:
+					P.cyl(n, 0.082, 0.082, 0.05, Vector3(0, 0, z), _dark(), Vector3(PI * 0.5, 0, 0), Vector3.ONE, 12)
+		"mg_spin", "mg_brace":
+			var n := _part(r, "motor", Vector3(0.0, 0.0, -0.08))
+			P.box(n, Vector3(0.09, 0.08, 0.12), Vector3(0.07, 0.0, 0.0), _gun_metal())
+			P.cyl(n, 0.03, 0.03, 0.1, Vector3(0.07, 0.05, 0.0), _steel() if id == "mg_spin" else _brass(), Vector3(PI * 0.5, 0, 0), Vector3.ONE, 10)
+			P.box(n, Vector3(0.012, 0.02, 0.06), Vector3(0.118, 0.0, 0.0), lit)
+		"core_cool", "core_focus", "core_cap":
+			var n := _part(r, "core", Vector3(0.0, 0.0, -0.1))
+			match id:
+				"core_cool":
+					for i in 3:
+						P.box(n, Vector3(0.2, 0.012, 0.03), Vector3(0, 0.085, -i * 0.05), _steel())
+				"core_focus":
+					P.cyl(n, 0.05, 0.04, 0.08, Vector3(0, 0, -0.32), _steel(), Vector3(PI * 0.5, 0, 0), Vector3.ONE, 14)
+					P.cyl(n, 0.03, 0.03, 0.01, Vector3(0, 0, -0.36), lit, Vector3(PI * 0.5, 0, 0), Vector3.ONE, 12)
+				"core_cap":
+					P.cyl(n, 0.035, 0.035, 0.16, Vector3(-0.08, 0.04, 0.0), _gun_metal(), Vector3(PI * 0.5, 0, 0), Vector3.ONE, 12)
+					P.cyl(n, 0.037, 0.037, 0.02, Vector3(-0.08, 0.04, -0.04), lit, Vector3(PI * 0.5, 0, 0), Vector3.ONE, 12)
+		"pod_third", "pod_rack":
+			var n := _part(r, "pod", Vector3(0.0, 0.0, 0.0))
+			if id == "pod_third":
+				P.cyl(n, 0.04, 0.04, 0.4, Vector3(0, 0.15, -0.12), _gun_metal(), Vector3(PI * 0.5, 0, 0), Vector3.ONE, 14)
+				P.cyl(n, 0.028, 0.0, 0.05, Vector3(0, 0.15, -0.34), Mats.flat(Color(0.7, 0.06, 0.04), 0.45, 0.1), Vector3(-PI * 0.5, 0, 0), Vector3.ONE, 12)
+			else:
+				P.box(n, Vector3(0.16, 0.12, 0.2), Vector3(0, 0.0, 0.3), _gun_metal())
+				P.box(n, Vector3(0.12, 0.014, 0.16), Vector3(0, 0.067, 0.3), lit)
+		"load_auto", "load_salvo":
+			var n := _part(r, "loader", Vector3(0.0, -0.06, 0.1))
+			P.box(n, Vector3(0.1, 0.06, 0.14), Vector3.ZERO, _dark())
+			P.cyl(n, 0.02, 0.02, 0.12, Vector3(0.0, -0.03, 0.0), lit if id == "load_salvo" else _steel(), Vector3(PI * 0.5, 0, 0), Vector3.ONE, 10)
+
+
 static func _add_part(r: Node3D, weapon: int, team: int, id: String) -> void:
+	if id.begins_with("mg_") or id.begins_with("core_") or id.begins_with("pod_") or id.begins_with("load_"):
+		_heavy_part(r, weapon, team, id)
+		return
 	match id:
 		"reddot", "holo", "scope": _optic(r, weapon, team, id)
 		"comp", "suppressor", "stabilizer": _muzzle_device(r, team, id)
@@ -329,9 +405,21 @@ static func anchor(r: Node3D, weapon: int, slot: String) -> Vector3:
 			var g: Vector2 = GRIP_AT.get(weapon, Vector2(0.0, -0.28))
 			return Vector3(0, g.x - 0.04, g.y)
 		"cell":
+			if C.WEAPONS[weapon].get("arm", false):
+				return Vector3(0.0, -0.07, 0.1)
 			var m := _cell_mount(r, weapon)
 			if not m.is_empty():
 				return (r.get_node("Cell") as Node3D).transform * (m["bottom"] as Vector3)
+		"barrel":
+			return Vector3(0, 0.07, -0.5)
+		"motor":
+			return Vector3(0.07, 0.0, -0.08)
+		"core":
+			return Vector3(0.0, 0.08, -0.1)
+		"pod":
+			return Vector3(0.0, 0.12, -0.1)
+		"loader":
+			return Vector3(0.0, -0.06, 0.1)
 	return Vector3.ZERO
 
 

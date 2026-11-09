@@ -152,7 +152,7 @@ func _rail(a: Vector2, c: Vector2, y: float, mat: String, tint: Color) -> void:
 
 func _sign(parent: Node3D, text: String, at: Vector3, color: Color, yaw := 0.0, size := 70) -> Label3D:
 	var label := Label3D.new()
-	label.text = text
+	label.text = T.t(text)
 	label.font = load("res://assets/fonts/BarlowCondensed-Bold.ttf")
 	label.font_size = size
 	label.pixel_size = 0.022

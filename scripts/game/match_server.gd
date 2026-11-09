@@ -997,6 +997,9 @@ func sv_swing(peer: int, dir: Vector3, view_time: float) -> void:
 	var s := world.soldier_for_peer(peer)
 	if s == null or not s.alive or not can_act() or not dir.is_finite() or dir.length_squared() < 0.5:
 		return
+	# Arms built into weapons have nothing to swing.
+	if s.melee_slot() < 0:
+		return
 	if s.control == Soldier.Driver.PROXY_SERVER:
 		if s.fire_cd > float(s.melee_weapon()["rate"]) * 0.3:
 			return
@@ -1121,7 +1124,7 @@ func world_ray(from: Vector3, to: Vector3) -> Dictionary:
 
 
 func resolve_shot(s: Soldier, origin: Vector3, dir: Vector3, time: float, from_owner := false) -> void:
-	if s.weapon_id() == C.W.AT_ROCKET:
+	if s.weapon().get("rocket", false):
 		_grenade_id += 1
 		Net.broadcast(&"rocket", [_grenade_id, s.sid, origin + dir * .65, dir])
 		return
@@ -1428,7 +1431,7 @@ func rocket_impact(id: int, owner_sid: int, pos: Vector3, direct: Soldier, vehic
 				damage_parked(vehicle_id, float(C.WEAPONS[C.W.MECH_LAUNCHER if lobbed else C.W.AT_ROCKET]["damage"]), owner)
 	_blast_parked(pos, 6.5 if lobbed else 4.5, 85.0 * 0.4 if lobbed else 75.0, owner, parked_hit)
 	if direct and world.are_foes(direct, owner):
-		var weapon := C.W.MECH_LAUNCHER if lobbed else C.W.AT_ROCKET
+		var weapon := C.W.MECH_LAUNCHER if lobbed else _rocket_of(owner)
 		apply_damage(direct, float(C.WEAPONS[weapon]["damage"]) if direct.is_vehicle() else (95.0 if lobbed else 110.0), owner, weapon, false, pos)
 	_damage_forts(pos, 6.5 if lobbed else 5.0, 220.0 if lobbed else 450.0, owner)
 	var reach := 6.5 if lobbed else 4.5
@@ -1438,7 +1441,12 @@ func rocket_impact(id: int, owner_sid: int, pos: Vector3, direct: Soldier, vehic
 		var distance := s.global_position.distance_to(pos)
 		if distance < reach and world_ray(pos + Vector3.UP * .2, s.global_position + Vector3.UP).is_empty():
 			var blast := (85.0 * (0.4 if s.is_vehicle() else 1.0)) if lobbed else 75.0
-			apply_damage(s, blast * (1.0 - distance / reach), owner, C.W.MECH_LAUNCHER if lobbed else C.W.AT_ROCKET, false, pos)
+			apply_damage(s, blast * (1.0 - distance / reach), owner, C.W.MECH_LAUNCHER if lobbed else _rocket_of(owner), false, pos)
+
+
+## Which launcher a rocket came from, for the kill feed.
+func _rocket_of(owner: Soldier) -> int:
+	return C.W.ARM_ROCKETS if owner.loadout.has(C.W.ARM_ROCKETS) else C.W.AT_ROCKET
 
 
 func explode(grenade_id: int, owner_sid: int, pos: Vector3) -> void:

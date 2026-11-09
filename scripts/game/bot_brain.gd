@@ -526,6 +526,14 @@ func _pick_weapon(dist: float) -> void:
 			return
 		if s.slot == 3:
 			s.switch_to(0)
+	if s.loadout.has(C.W.ARM_ROCKETS):
+		# The liquidator: rockets for armour, mechs and close packs, the cannon for the rest.
+		var armour: bool = target.is_vehicle() or target.is_mech()
+		var has_rockets: bool = s.mags[1] > 0 or s.reserves[1] > 0
+		var want_arm := 1 if has_rockets and dist > 8.0 and (armour or (s.mags[0] <= 0 and s.reserves[0] <= 0)) else 0
+		if s.slot != want_arm:
+			s.switch_to(want_arm)
+		return
 	var melee := s.melee_slot()
 	if melee < 0:
 		# Tanks: the machine gun for infantry up close, the main gun for the rest.

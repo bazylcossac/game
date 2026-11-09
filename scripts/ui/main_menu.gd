@@ -9,7 +9,7 @@ signal join_game(address: String, port: int)
 const FULL_PAGES := ["battle", "host", "team"]
 const SIDE_ART := ["side_usa", "side_imperium"]
 const SIDE_ICONS := ["res://assets/textures/icon_usa.png", "res://assets/textures/icon_empire.png"]
-const SIDE_NOTES := ["Ludzie przeciw maszynom. Armia USA, laser i miecz.", "Armia maszyn. Stal, droidy i ogień zaporowy."]
+const SIDE_NOTES := ["Ostatni ludzie. Złom, laser i wściekłość.", "Sztuczna inteligencja w garniturze. Wydajność, posłuszeństwo, likwidacja."]
 const MAP_CARD := Vector2(212, 240)
 
 var _pages := {}
@@ -25,6 +25,9 @@ var _host_port := C.DEFAULT_PORT
 var _browser: ServerBrowser
 var _team_note: Label
 var _team_row: HBoxContainer
+var _eye: TextureRect
+var _scan: ColorRect
+var _clock := 0.0
 
 
 func _ready() -> void:
@@ -33,9 +36,16 @@ func _ready() -> void:
 	add_child(_backdrop)
 	add_child(_left_shade())
 	_dim = ColorRect.new()
-	_dim.color = Color(0.02, 0.025, 0.035, 0.76)
+	_dim.color = Color(0.02, 0.02, 0.03, 0.78)
 	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(UiKit.fill(_dim))
+	# A surveillance feed: scan lines, a dark vignette and a red cast, over the whole screen.
+	_scan = ColorRect.new()
+	_scan.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var feed := ShaderMaterial.new()
+	feed.shader = load("res://shaders/menu_feed.gdshader")
+	_scan.material = feed
+	add_child(UiKit.fill(_scan))
 
 	var m := MarginContainer.new()
 	m.add_theme_constant_override("margin_left", 72)
@@ -49,8 +59,27 @@ func _ready() -> void:
 
 	var header := VBoxContainer.new()
 	header.add_theme_constant_override("separation", 0)
-	header.add_child(UiKit.label(C.GAME_TITLE, 118, UiKit.INK, "title"))
-	header.add_child(UiKit.label(C.GAME_SUBTITLE, 34, UiKit.BRASS, "semibold"))
+	var title_row := HBoxContainer.new()
+	title_row.add_theme_constant_override("separation", 22)
+	title_row.add_child(UiKit.label(C.GAME_TITLE, 118, UiKit.INK, "title"))
+	# Korpo's eye watches the title screen, and opens and closes its light slowly.
+	_eye = TextureRect.new()
+	_eye.texture = load(SIDE_ICONS[C.Team.EMPIRE])
+	_eye.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_eye.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_eye.custom_minimum_size = Vector2(96, 96)
+	_eye.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	title_row.add_child(_eye)
+	header.add_child(title_row)
+	var bar := ColorRect.new()
+	bar.color = UiKit.RED
+	bar.custom_minimum_size = Vector2(420, 4)
+	bar.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	header.add_child(bar)
+	var gap_small := Control.new()
+	gap_small.custom_minimum_size = Vector2(0, 8)
+	header.add_child(gap_small)
+	header.add_child(UiKit.label(C.GAME_SUBTITLE, 34, UiKit.RED, "semibold"))
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 28)
 	header.add_child(gap)
@@ -97,6 +126,12 @@ func _ready() -> void:
 	_show("main")
 	Sfx.play_music("menu_music")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+func _process(delta: float) -> void:
+	_clock += delta
+	if _eye:
+		_eye.modulate = Color(1, 1, 1, 0.75 + 0.25 * sin(_clock * 1.3))
 
 
 func set_status(text: String) -> void:
@@ -236,7 +271,7 @@ func _page_main() -> Control:
 	marks.add_child(UiKit.label("VS", 40, UiKit.BRASS, "title"))
 	marks.add_child(_emblem(1))
 	inside.add_child(marks)
-	inside.add_child(UiKit.wrapped("Świat, w którym wojna poszła inną drogą. Miasta podbiło Żelazne Imperium, armia bezdusznych maszyn. Armia Stanów Zjednoczonych chwyta za laserowe karabiny i miecze energetyczne, by je odbić. Stań po jednej ze stron.", 23, UiKit.MUTED))
+	inside.add_child(UiKit.wrapped("Rok 2087. Sztuczna inteligencja przejęła korporacje, a korporacje przejęły świat. Ludzie nie są już potrzebni do żadnej pracy. Korpo, armia robotów w czarnych garniturach, zarządza miastami i wygasza resztę ludzkości. Rebelia, ostatni ludzie, chwyta za broń ze złomu. Stań po jednej ze stron.", 23, UiKit.MUTED))
 	return page
 
 
@@ -385,7 +420,8 @@ func _pick_side(team: int) -> void:
 func _refresh_options() -> void:
 	for box in _option_boxes:
 		_fill_options(box)
-	_side_rows.assign(_side_rows.filter(func(row: HBoxContainer) -> bool: return is_instance_valid(row) and not row.is_queued_for_deletion()))
+	# Untyped: a row freed meanwhile is no longer an HBoxContainer, and a typed lambda would fail on it.
+	_side_rows.assign(_side_rows.filter(func(row: Variant) -> bool: return is_instance_valid(row) and not (row as Node).is_queued_for_deletion()))
 	for row in _side_rows:
 		for team in row.get_child_count():
 			var card := row.get_child(team) as UiCard

@@ -27,7 +27,7 @@ func _ready() -> void:
 func _counts() -> void:
 	var table := {
 		0: [[3, 1, 0], [1, 2, 0], [1, 1, 0], [1, 0, 2], [1, 2, 0]],
-		1: [[2, 1, 1], [1, 1, 0], [2, 0, 1], [3, 0, 2], [1, 2, 0]],
+		1: [[2, 1, 1], [1, 1, 0], [1, 0, 1], [1, 2, 0], [1, 2, 0]],
 	}
 	for team: int in table:
 		for class_id in table[team].size():

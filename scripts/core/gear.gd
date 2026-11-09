@@ -5,7 +5,7 @@ extends RefCounted
 
 const MAX_LEVEL := 30
 const SLOTS := ["optic", "muzzle", "grip", "cell"]
-const SLOT_NAMES := {"optic": "Celownik", "muzzle": "Wylot lufy", "grip": "Chwyt", "cell": "Ogniwo"}
+const SLOT_NAMES := {"optic": "Celownik", "muzzle": "Wylot lufy", "grip": "Chwyt", "cell": "Ogniwo", "barrel": "Lufy", "motor": "Napęd", "core": "Rdzeń działa", "pod": "Komora rakiet", "loader": "Podajnik"}
 const PERK_SLOTS := ["body", "kit"]
 const PERK_SLOT_NAMES := {"body": "Perk: ciało", "kit": "Perk: sprzęt"}
 
@@ -16,18 +16,20 @@ const PRIMARIES := [
 	[C.W.SNIPER, C.W.SILENT, C.W.RAIL],
 	[C.W.SCATTER, C.W.SMG2, C.W.RIFLE],
 	[C.W.CARBINE, C.W.ASSAULT, C.W.SMG2],
-	[C.W.MINIGUN, C.W.HEAVY],
+	[C.W.MINIGUN],
 ]
-## The same, for the Iron Empire's classes.
+## The same, for Korpo's classes.
 const PRIMARIES_EMPIRE := [
 	[C.W.ASSAULT, C.W.CARBINE, C.W.RIFLE, C.W.LIGHTSABER, C.W.SWORD, C.W.GREATSWORD],
 	[C.W.SNIPER, C.W.SILENT, C.W.RAIL],
-	[C.W.HEAVY, C.W.SCATTER, C.W.RIFLE],
-	[C.W.SCATTER, C.W.SMG, C.W.SMG2],
+	[C.W.ARM_CANNON],
+	[C.W.SMG2, C.W.SMG, C.W.SCATTER],
 	[C.W.ASSAULT, C.W.CARBINE, C.W.SMG2],
 	[C.W.SCATTER, C.W.SMG2, C.W.RIFLE],
 ]
 const SIDEARMS := [C.W.PISTOL, C.W.REVOLVER, C.W.MPISTOL]
+## A class whose second weapon is built into its body has only that one.
+const FIXED_SIDEARMS := {C.W.ARM_CANNON: [C.W.ARM_ROCKETS]}
 
 const WEAPON_LEVEL := {
 	C.W.REVOLVER: 2, C.W.LIGHTSABER: 3, C.W.SMG2: 4, C.W.ASSAULT: 5, C.W.SILENT: 6, C.W.MPISTOL: 8,
@@ -40,7 +42,10 @@ const SCOPED_SLOTS := ["muzzle", "grip", "cell"]
 const WEAPON_SLOTS := {
 	C.W.CARBINE: RIFLE_SLOTS, C.W.ASSAULT: RIFLE_SLOTS, C.W.RIFLE: RIFLE_SLOTS, C.W.HEAVY: RIFLE_SLOTS,
 	# Pointed from the hip: no sights to fit, and its own handle for the left hand.
-	C.W.MINIGUN: ["cell"],
+	C.W.MINIGUN: ["barrel", "motor", "cell"],
+	# Built into the arms: no sights and no grips, only what feeds and powers them.
+	C.W.ARM_CANNON: ["core", "cell"],
+	C.W.ARM_ROCKETS: ["pod", "loader"],
 	C.W.SMG: RIFLE_SLOTS, C.W.SMG2: RIFLE_SLOTS, C.W.SCATTER: ["optic", "grip", "cell"],
 	C.W.SNIPER: SCOPED_SLOTS, C.W.SILENT: RIFLE_SLOTS, C.W.RAIL: ["grip", "cell"],
 	C.W.PISTOL: SIDEARM_SLOTS, C.W.REVOLVER: SIDEARM_SLOTS, C.W.MPISTOL: SIDEARM_SLOTS,
@@ -58,6 +63,8 @@ const RECOIL := {
 	C.W.RIFLE: {"h": 0.3, "bias": 0.15, "rise": 0.0},
 	C.W.HEAVY: {"h": 0.8, "bias": 0.4, "rise": 0.1},
 	C.W.MINIGUN: {"h": 0.9, "bias": 0.2, "rise": 0.015},
+	C.W.ARM_CANNON: {"h": 0.7, "bias": 0.25, "rise": 0.05},
+	C.W.ARM_ROCKETS: {"h": 0.4, "bias": 0.0, "rise": 0.0},
 	C.W.SMG: {"h": 1.0, "bias": 0.0, "rise": 0.02},
 	C.W.SMG2: {"h": 1.4, "bias": 0.25, "rise": 0.03},
 	C.W.SCATTER: {"h": 0.6, "bias": 0.0, "rise": 0.0},
@@ -107,6 +114,41 @@ const ATTACHMENTS := {
 	"overcell": {"slot": "cell", "name": "Ogniwo przeładowane", "level": 15,
 		"desc": "Mocniejszy strzał. Mniej energii i wolniejsza szybkostrzelność.",
 		"mods": {"damage": 1.12, "rate": 1.1, "mag": 0.8}, "set": {}},
+	# Minigun: the barrels, the motor that spins them.
+	"mg_cool": {"slot": "barrel", "name": "Chłodzone lufy", "level": 3,
+		"desc": "Lufy w płaszczu chłodzącym. Seria trzyma się celu dużo ciaśniej.",
+		"mods": {"spread_hip": 0.78, "spread_ads": 0.8, "spread_move": 0.85}, "set": {}},
+	"mg_heavy": {"slot": "barrel", "name": "Ciężkie lufy", "level": 9,
+		"desc": "Grubsze lufy i mocniejsza wiązka. Wolniej strzela i dłużej się rozkręca.",
+		"mods": {"damage": 1.14, "rate": 1.08, "spin": 1.2}, "set": {}},
+	"mg_spin": {"slot": "motor", "name": "Szybki rozruch", "level": 5,
+		"desc": "Mocniejszy silnik: lufy rozkręcają się w połowę czasu.",
+		"mods": {"spin": 0.5}, "set": {}},
+	"mg_brace": {"slot": "motor", "name": "Stabilizator żyroskopowy", "level": 12,
+		"desc": "Żyroskop tłumi szarpanie broni. Dużo mniejszy odrzut, trochę wolniejszy chód.",
+		"mods": {"recoil": 0.7, "recoil_h": 0.6, "move_mult": 0.97}, "set": {}},
+	# Korpo heavy: the arm cannon's core, and the rocket pod on the other arm.
+	"core_cool": {"slot": "core", "name": "Chłodnica ramienia", "level": 3,
+		"desc": "Działo grzeje się wolniej: celniejsza seria z biodra.",
+		"mods": {"spread_hip": 0.75, "spread_move": 0.8, "recoil": 0.85}, "set": {}},
+	"core_focus": {"slot": "core", "name": "Soczewka skupiająca", "level": 8,
+		"desc": "Wiązka trzyma moc dużo dalej.",
+		"mods": {"range": 1.35, "falloff_start": 1.6}, "set": {}},
+	"core_cap": {"slot": "core", "name": "Kondensator mocy", "level": 14,
+		"desc": "Mocniejszy strzał kosztem szybkostrzelności.",
+		"mods": {"damage": 1.15, "rate": 1.1}, "set": {}},
+	"pod_third": {"slot": "pod", "name": "Trzecia rakieta", "level": 4,
+		"desc": "Większa komora: trzy rakiety zamiast dwóch. Dłuższe ładowanie.",
+		"mods": {"mag": 1.5, "reload": 1.2}, "set": {}},
+	"pod_rack": {"slot": "pod", "name": "Zapasowe rakiety", "level": 7,
+		"desc": "Magazyn na plecach: dwa razy więcej rakiet w zapasie.",
+		"mods": {"reserve": 2.0, "move_mult": 0.97}, "set": {}},
+	"load_auto": {"slot": "loader", "name": "Automat ładujący", "level": 6,
+		"desc": "Mechaniczny podajnik ładuje komorę o 40% szybciej.",
+		"mods": {"reload": 0.6}, "set": {}},
+	"load_salvo": {"slot": "loader", "name": "Tryb salwy", "level": 11,
+		"desc": "Rakiety wychodzą jedna za drugą, prawie bez przerwy.",
+		"mods": {"rate": 0.35}, "set": {}},
 }
 
 const PERKS := {
@@ -190,8 +232,12 @@ static func primaries(team: int, class_id: int) -> Array:
 	return PRIMARIES_EMPIRE[class_id] if team == C.Team.EMPIRE else PRIMARIES[class_id]
 
 
+static func sidearms(team: int, class_id: int) -> Array:
+	return FIXED_SIDEARMS.get(primaries(team, class_id)[0], SIDEARMS)
+
+
 static func default_kit(class_id: int, team := 0) -> Dictionary:
-	return {"primary": primaries(team, class_id)[0], "sidearm": SIDEARMS[0], "parts_p": [], "parts_s": [], "perks": [], "ordnance": "grenades"}
+	return {"primary": primaries(team, class_id)[0], "sidearm": sidearms(team, class_id)[0], "parts_p": [], "parts_s": [], "perks": [], "ordnance": "grenades"}
 
 
 ## Rebuilds a kit, keeping only what this class and level really allow. The server runs
@@ -204,7 +250,7 @@ static func sanitize(class_id: int, kit: Dictionary, level: int, team := 0) -> D
 	if primaries(team, class_id).has(primary) and weapon_level(primary) <= level:
 		out["primary"] = primary
 	var sidearm: int = int(kit.get("sidearm", -1))
-	if SIDEARMS.has(sidearm) and weapon_level(sidearm) <= level:
+	if sidearms(team, class_id).has(sidearm) and weapon_level(sidearm) <= level:
 		out["sidearm"] = sidearm
 	out["parts_p"] = _legal_parts(out["primary"], kit.get("parts_p", []), level)
 	out["parts_s"] = _legal_parts(out["sidearm"], kit.get("parts_s", []), level)

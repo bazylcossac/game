@@ -465,6 +465,99 @@ def vending():
     box(p, "slot", (0, 0.32, 0.41), (0.7, 0.2, 0.03), DARK)
 
 
+# ---------------------------------------------------------------- Korpo offices
+
+def _chair(p, x, z, facing):
+    """An office chair on a five-spoke base, turned to face `facing` along Z."""
+    limb(p, "chair post", [(x, 0.08, z), (x, 0.44, z)], [0.03, 0.03], CHROME, 6)
+    for i in range(5):
+        a = math.tau * i / 5
+        limb(p, "chair spoke", [(x, 0.06, z), (x + math.cos(a) * 0.3, 0.04, z + math.sin(a) * 0.3)], [0.022, 0.018], DARK, 4)
+    box(p, "chair seat", (x, 0.48, z), (0.5, 0.08, 0.48), DARK, (0, 0, 0), 0.02)
+    box(p, "chair back", (x, 0.84, z + facing * 0.24), (0.46, 0.62, 0.07), DARK, (facing * 0.12, 0, 0), 0.02)
+
+
+def _workstation(p, x, z, facing):
+    """One desk: top, panel legs, a monitor and a keyboard. The chair sits on the `facing` side."""
+    box(p, "desk top", (x, 0.74, z), (1.5, 0.04, 0.75), PAINT, (0, 0, 0), 0.008)
+    for s in (-1, 1):
+        box(p, "desk leg", (x + s * 0.71, 0.36, z), (0.04, 0.72, 0.7), STEEL)
+    box(p, "monitor", (x, 1.06, z - facing * 0.18), (0.62, 0.38, 0.03), DARK, (0, 0, 0), 0.006)
+    box(p, "screen", (x, 1.07, z - facing * 0.18 + facing * 0.017), (0.56, 0.32, 0.005), SCREEN)
+    limb(p, "monitor stand", [(x, 0.76, z - facing * 0.2), (x, 0.9, z - facing * 0.2)], [0.02, 0.02], CHROME, 5)
+    box(p, "keyboard", (x, 0.77, z + facing * 0.08), (0.44, 0.02, 0.14), DARK)
+    _chair(p, x, z + facing * 0.62, facing)
+
+
+def office_desks():
+    """Four desks pushed together under a low screen: the open-plan floor where people once worked."""
+    p = begin("office_desks")
+    for x in (-0.76, 0.76):
+        for facing in (-1, 1):
+            _workstation(p, x, facing * 0.4, facing)
+    box(p, "divider", (0, 1.0, 0), (3.1, 0.5, 0.05), PAINT, (0, 0, 0), 0.01)
+    box(p, "divider glow", (0, 1.25, 0), (3.1, 0.02, 0.06), GLOW_P)
+
+
+def office_shelf():
+    """Two metres of steel shelving full of binders and archive boxes."""
+    p = begin("office_shelf")
+    for x in (-0.98, 0.98):
+        for z in (-0.2, 0.2):
+            box(p, "upright", (x, 1.05, z), (0.04, 2.1, 0.04), STEEL)
+    for y in (0.08, 0.6, 1.12, 1.64, 2.08):
+        box(p, "shelf", (0, y, 0), (2.0, 0.03, 0.44), STEEL)
+    rnd = random.Random(31)
+    for y in (0.1, 0.62, 1.14, 1.66):
+        x = -0.92
+        while x < 0.88:
+            w = rnd.uniform(0.05, 0.09)
+            if rnd.random() < 0.18:
+                box(p, "archive box", (x + 0.16, y + 0.15, 0), (0.32, 0.28, 0.36), CANVAS)
+                x += 0.36
+                continue
+            h = rnd.uniform(0.3, 0.42)
+            box(p, "binder", (x + w / 2, y + h / 2 + 0.01, 0.02), (w, h, 0.32), PAINT if rnd.random() < 0.7 else DARK, (0, 0, rnd.uniform(-0.05, 0.05)))
+            x += w + 0.004
+            if rnd.random() < 0.08:
+                x += 0.12
+
+
+def server_rack():
+    """A rack of the machine's own minds, humming with status lights."""
+    p = begin("server_rack")
+    box(p, "cabinet", (0, 1.1, 0), (0.7, 2.2, 1.0), DARK, (0, 0, 0), 0.01)
+    box(p, "door", (0, 1.1, -0.505), (0.64, 2.1, 0.02), GLASS)
+    rnd = random.Random(7)
+    for i in range(16):
+        y = 0.2 + i * 0.12
+        box(p, "unit", (0, y, -0.46), (0.6, 0.09, 0.06), IRON)
+        for k in range(3):
+            if rnd.random() < 0.7:
+                box(p, "status", (-0.24 + k * 0.05, y, -0.495), (0.02, 0.02, 0.01), TAIL if rnd.random() < 0.45 else GLOW_C)
+    box(p, "top light", (0, 2.21, -0.3), (0.6, 0.02, 0.3), TAIL)
+
+
+def filing_cabinet():
+    p = begin("filing_cabinet")
+    box(p, "cabinet", (0, 0.66, 0), (0.48, 1.32, 0.62), PAINT, (0, 0, 0), 0.01)
+    for i in range(4):
+        y = 0.2 + i * 0.31
+        box(p, "drawer", (0, y, -0.315), (0.42, 0.27, 0.01), STEEL)
+        box(p, "handle", (0, y + 0.06, -0.325), (0.14, 0.02, 0.02), CHROME)
+
+
+def reception():
+    """The front desk, four metres of black stone under a lit band, where a machine greets nobody."""
+    p = begin("reception")
+    box(p, "counter", (0, 0.55, 0), (4.0, 1.1, 0.8), DARK, (0, 0, 0), 0.02)
+    box(p, "counter top", (0, 1.13, -0.08), (4.1, 0.06, 0.96), CHROME, (0, 0, 0), 0.01)
+    box(p, "front glow", (0, 0.86, -0.41), (3.8, 0.04, 0.02), GLOW_P)
+    box(p, "logo", (0, 0.55, -0.41), (0.5, 0.36, 0.02), LED)
+    for x in (-1.2, 1.2):
+        box(p, "screen", (x, 1.36, 0.1), (0.5, 0.32, 0.03), SCREEN, (0.3, 0, 0))
+
+
 def duckboard():
     """Two metres of trench boards: slats nailed across a pair of runners."""
     p = begin("duckboard")
@@ -733,6 +826,11 @@ def main():
     container()
     dumpster()
     vending()
+    office_desks()
+    office_shelf()
+    server_rack()
+    filing_cabinet()
+    reception()
     wreck_car()
     wreck_truck()
     wreck_tank()

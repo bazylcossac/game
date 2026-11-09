@@ -1,8 +1,11 @@
-# Miecz Dawida: Laserowy Front
+# Corp Wars: Ostatni bunt ludzi
 
-Pierwszoosobowa strzelanka w Godot 4.7. Armia USA walczy o zrujnowane
-miasto z armią maszyn Żelaznego Imperium, używając broni laserowej i mieczy
-energetycznych. Pięć trybów gry na siedmiu mapach, klasy, boty i gra przez sieć.
+Pierwszoosobowa strzelanka w Godot 4.7. Rok 2087: sztuczna inteligencja przejęła
+korporacje, a ludzie nie są już potrzebni do pracy. Rebelia, ostatni ludzie, walczy
+z Korpo, armią robotów w czarnych garniturach. Broń laserowa, miecze energetyczne,
+pięć trybów gry na siedmiu mapach, klasy, boty i gra przez sieć.
+
+(Do wersji 0.12.0 gra nazywała się Miecz Dawida. Pliki gry i serwera zachowały stare nazwy.)
 
 ## Pobieranie
 

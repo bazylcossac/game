@@ -48,8 +48,20 @@ const SCENES := [
 	{"name": "czolganie_przod", "mode": "pvp", "map": "rynek", "cam": Vector3(1.2, 0.7, 8.8), "look": Vector3(0, 0.3, 12), "prone": true, "men": [[1, 0, 0, 12, 0, 2, false]]},
 	{"name": "side_usa", "mode": "pvp", "map": "rynek", "cam": Vector3(0.2, 0.8, 12.4), "look": Vector3(0, 1.5, 8), "relaxed": true,
 		"men": [[0, 4, 0, 8.5, 0.2, 13, false], [0, 0, -1.7, 9.3, 0.6, 13, false], [0, 2, 1.7, 9.2, -0.6, 13, false]]},
-	{"name": "side_imperium", "mode": "pvp", "map": "stacja_rdzen", "cam": Vector3(0.2, 0.8, 14.8), "look": Vector3(0, 1.5, 10), "relaxed": true,
-		"men": [[1, 2, 0, 10.8, 0.2, 15, false], [1, 0, -1.3, 11.4, 0.6, 15, false], [1, 3, 1.3, 11.3, -0.6, 15, false]]},
+	{"name": "side_imperium", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(14.2, 0.8, 104.4), "look": Vector3(14, 1.6, 100), "relaxed": true,
+		"men": [[1, 2, 14, 100.8, 14.2, 105, false], [1, 0, 12.7, 101.4, 14.6, 105, false], [1, 3, 15.3, 101.3, 13.4, 105, false]]},
+	# Checks for Corp Wars, written to their own folder: never run menu_art.py over these.
+	{"name": "check_korpo", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(14, 1.5, 107), "look": Vector3(14, 1.2, 100), "relaxed": true,
+		"men": [[1, 0, 10, 100, 10, 107, false], [1, 1, 12, 100, 12, 107, false], [1, 2, 14, 100, 14, 107, false], [1, 3, 16, 100, 16, 107, false], [1, 4, 18, 100, 18, 107, false], [1, 5, 8, 100, 8, 107, false], [1, 7, 20, 100, 20, 107, false]]},
+	{"name": "check_rebels", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(14, 1.5, 107), "look": Vector3(14, 1.2, 100), "relaxed": true,
+		"men": [[0, 0, 10, 100, 10, 107, false], [0, 1, 12, 100, 12, 107, false], [0, 2, 14, 100, 14, 107, false], [0, 3, 16, 100, 16, 107, false], [0, 4, 18, 100, 18, 107, false], [0, 5, 8, 100, 8, 107, false], [0, 7, 20, 100, 20, 107, false]]},
+	{"name": "check_fight", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(4, 1.7, 110), "look": Vector3(14, 1.4, 96),
+		"men": [[1, 2, 16, 92, 6, 104, false], [1, 0, 19, 95, 6, 104, false], [0, 5, 6, 104, 16, 92, false], [0, 0, 9, 107, 16, 92, true]],
+		"bolts": [[1, 16, 92, 6, 104], [0, 6, 104, 16, 92], [1, 19, 95, 9, 107]]},
+	{"name": "check_office", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(-102, 1.7, 147), "look": Vector3(-130, 1.2, 116)},
+	{"name": "check_office_door", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(-118, 1.7, 100), "look": Vector3(-118, 2.0, 130)},
+	{"name": "check_ads", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(0, 2.0, 150), "look": Vector3(-40, 18, 110)},
+	{"name": "check_street", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(10, 1.8, 180), "look": Vector3(0, 8, 60)},
 ]
 
 var out_dir := ""
