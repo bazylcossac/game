@@ -36,6 +36,8 @@ const OFFICE_CELL := 7.0
 const OFFICE_CLEAR := 3.4
 const ADS := 6
 const OFFICE_LIGHT := Color(0.78, 0.86, 1.0)
+## Office walls from inside: a dim grey, so the floors stay dark between the lamps.
+const WALL_IN := Color(0.3, 0.31, 0.33)
 const PAINTS := [Color(0.04, 0.05, 0.07), Color(0.78, 0.8, 0.84), Color(0.34, 0.37, 0.42), Color(0.5, 0.05, 0.08), Color(0.05, 0.14, 0.42), Color(0.9, 0.62, 0.06), Color(0.04, 0.3, 0.32), Color(0.34, 0.06, 0.36)]
 const LEAVES := [Color(0.5, 0.95, 0.62), Color(0.42, 0.85, 0.8), Color(0.72, 1.0, 0.5), Color(0.86, 0.5, 0.9)]
 ## The four walk-through buildings round the central square.
@@ -957,12 +959,15 @@ func _office(lot: Rect2, strip: String) -> void:
 	for i in 4:
 		var a: Vector2 = corners[i]
 		var e: Vector2 = corners[(i + 1) % 4]
-		_wall_run(a, e, OFFICE_H, "panel", Color(0.3, 0.32, 0.4), _office_openings(a.distance_to(e)))
+		var holes := _office_openings(a.distance_to(e))
+		_wall_run(a, e, OFFICE_H, "panel", Color(0.3, 0.32, 0.4), holes)
+		if not b.headless:
+			_lining(a, e, holes, c)
 	style = {}
 	b.box(Vector3(c.x, OFFICE_H + 0.2, c.y), Vector3(lot.size.x, 0.4, lot.size.y), "concrete", Color(0.3, 0.3, 0.34))
 	_offices.append(Vector3(c.x, OFFICE_H - 0.8, c.y))
 	if not b.headless:
-		b.box(Vector3(c.x, 0.13, c.y), Vector3(lot.size.x - 0.5, 0.03, lot.size.y - 0.5), "fabric", Color(0.16, 0.17, 0.2), false)
+		_finish_office(lot)
 	var inner := lot.grow(-OFFICE_CLEAR)
 	var nx := maxi(int(inner.size.x / OFFICE_CELL), 1)
 	var nz := maxi(int(inner.size.y / OFFICE_CELL), 1)
@@ -980,9 +985,11 @@ func _office(lot: Rect2, strip: String) -> void:
 			var corner := p + Vector3(step.x * 0.5, 0, step.y * 0.5)
 			var k := _canon(corner)
 			if i < nx - 1 and j < nz - 1 and _roll(k.x, k.z, 44.0) < 0.4:
-				_low(corner, Vector3(0.9, OFFICE_H, 0.9), "concrete", Color(0.42, 0.42, 0.46))
+				_column(corner)
 			if not b.headless:
-				b.box(Vector3(p.x, OFFICE_H - 0.03, p.z), Vector3(2.6, 0.05, 0.7), "office_light", Color.WHITE, false)
+				# A lamp panel set into the ceiling grid, in a thin metal frame.
+				b.box(Vector3(p.x, OFFICE_H - 0.16, p.z), Vector3(2.5, 0.04, 0.62), "office_light", Color.WHITE, false)
+				b.box(Vector3(p.x, OFFICE_H - 0.14, p.z), Vector3(2.62, 0.05, 0.74), "metal", Color(0.7, 0.72, 0.76), false)
 			var q := _canon(p)
 			var roll := _roll(q.x, q.z, 42.0)
 			if Vector2i(i, j) == servers:
@@ -994,6 +1001,91 @@ func _office(lot: Rect2, strip: String) -> void:
 			elif roll < 0.9:
 				_low(p, Vector3(4.0, 1.15, 0.9), "", Color.WHITE)
 				props.stand("reception", p, PI if p.z > c.y else 0.0)
+				props.stand("dead_plant", p + Vector3(2.6, 0, 0), roll * 20.0)
+				props.stand("dead_plant", p + Vector3(-2.6, 0, 0), roll * 31.0)
+			else:
+				_lounge(p, q)
+
+
+## What an office looks like from inside: carpet tiles, a suspended ceiling, and ducts and cable
+## trays running under it. None of it is in anyone's way, so none of it has collision.
+func _finish_office(lot: Rect2) -> void:
+	var c := lot.get_center()
+	b.box(Vector3(c.x, 0.13, c.y), Vector3(lot.size.x - 0.5, 0.03, lot.size.y - 0.5), "carpet", Color(0.6, 0.6, 0.62), false)
+	b.box(Vector3(c.x, OFFICE_H - 0.1, c.y), Vector3(lot.size.x - 0.5, 0.06, lot.size.y - 0.5), "ceiling_tiles", Color(0.3, 0.3, 0.32), false)
+	var along_x := lot.size.x >= lot.size.y
+	for s: float in [-0.28, 0.28]:
+		var at := c + (Vector2(0, lot.size.y * s) if along_x else Vector2(lot.size.x * s, 0))
+		var run := Vector3(lot.size.x - 1.2, 0.4, 0.7) if along_x else Vector3(0.7, 0.4, lot.size.y - 1.2)
+		b.box(Vector3(at.x, OFFICE_H - 0.42, at.y), run, "metal", Color(0.62, 0.64, 0.68), false)
+		var tray := Vector3(lot.size.x - 1.2, 0.06, 0.32) if along_x else Vector3(0.32, 0.06, lot.size.y - 1.2)
+		var off := Vector2(0, 1.0) if along_x else Vector2(1.0, 0)
+		b.box(Vector3(at.x + off.x, OFFICE_H - 0.5, at.y + off.y), tray, "metal", Color(0.3, 0.31, 0.34), false)
+
+
+## The inside face of an outer wall: pale panels with a dark skirting and a lit strip at the top,
+## open wherever the wall is. Now and then a Korpo screen hangs between the windows.
+func _lining(a: Vector2, e: Vector2, holes: Array, centre: Vector2) -> void:
+	var length := a.distance_to(e)
+	var dir := (e - a) / length
+	var inward := Vector2(-dir.y, dir.x)
+	if (centre - (a + e) * 0.5).dot(inward) < 0.0:
+		inward = -inward
+	var yaw := atan2(-dir.y, dir.x)
+	var face := 0.24
+	var piece := func(s0: float, s1: float, y0: float, y1: float, mat: String, tint: Color, depth: float) -> void:
+		if s1 - s0 < 0.05 or y1 - y0 < 0.02:
+			return
+		var mid := a + dir * ((s0 + s1) * 0.5) + inward * (face + depth * 0.5)
+		b.box(Vector3(mid.x, (y0 + y1) * 0.5, mid.y), Vector3(s1 - s0, y1 - y0, depth), mat, tint, false, yaw)
+	var top := OFFICE_H - 0.12
+	var at := 0.3
+	var sorted := holes.duplicate()
+	sorted.sort_custom(func(p: Array, q: Array) -> bool: return p[0] < q[0])
+	for hole: Array in sorted + [[length + 0.3 + 99.0, 0.0, 0.0, 0.0]]:
+		var s0: float = minf(hole[0] - hole[1] * 0.5, length - 0.3)
+		# Solid wall up to this opening.
+		piece.call(at, s0, 0.0, top, "office_wall", WALL_IN, 0.04)
+		piece.call(at, s0, 0.0, 0.14, "metal", Color(0.12, 0.12, 0.14), 0.06)
+		if s0 - at > 3.4:
+			var mid := a + dir * ((at + s0) * 0.5) + inward * (face + 0.07)
+			var screen_roll := _roll(mid.x, mid.y, 46.0)
+			if screen_roll < 0.45:
+				var look := atan2(inward.x, inward.y)
+				b.box(Vector3(mid.x, 2.5, mid.y), Vector3(2.5, 1.35, 0.08) if absf(dir.x) > 0.5 else Vector3(0.08, 1.35, 2.5), "metal", Color(0.05, 0.05, 0.06), false)
+				_ads.append([int(screen_roll * 13.0) % ADS, Transform3D(Basis(Vector3.UP, look) * Basis.from_scale(Vector3(2.3, 1.15, 1.0)), Vector3(mid.x, 2.5, mid.y) + Vector3(inward.x, 0, inward.y) * 0.05)])
+		if hole[1] <= 0.0:
+			break
+		var s1: float = hole[0] + hole[1] * 0.5
+		# Above and below the opening, and a deep reveal round it.
+		piece.call(s0, s1, hole[3], top, "office_wall", WALL_IN, 0.04)
+		if hole[2] > 0.1:
+			piece.call(s0, s1, 0.0, hole[2], "office_wall", WALL_IN.darkened(0.1), 0.04)
+			piece.call(s0, s1, hole[2] - 0.03, hole[2] + 0.03, "metal", Color(0.55, 0.57, 0.6), 0.3)
+		at = s1
+	var strip := a + dir * (length * 0.5) + inward * (face + 0.02)
+	b.box(Vector3(strip.x, top - 0.05, strip.y), Vector3(length - 0.6, 0.05, 0.03), "office_light", Color.WHITE, false, yaw)
+
+
+## A structural column, clad in the same pale panels, with a steel foot.
+func _column(at: Vector3) -> void:
+	_low(at, Vector3(0.9, OFFICE_H, 0.9), "office_wall", WALL_IN.darkened(0.05))
+	if not b.headless:
+		b.box(at + Vector3.UP * 0.08, Vector3(0.96, 0.16, 0.96), "metal", Color(0.14, 0.14, 0.16), false)
+		b.box(at + Vector3.UP * 2.6, Vector3(0.94, 0.04, 0.94), "office_light", Color.WHITE, false)
+
+
+## A corner nobody has used in a long time: the copier, the water cooler, a dead plant.
+func _lounge(p: Vector3, q: Vector3) -> void:
+	var yaw := 0.0 if _roll(q.x, q.z, 47.0) < 0.5 else PI * 0.5
+	# The mirror image of this corner is turned half round, so the two stay alike.
+	if p.distance_to(q) > 0.2:
+		yaw += PI
+	var axis := Basis(Vector3.UP, yaw)
+	_low(p + axis * Vector3(-1.2, 0, 0), Vector3(1.1, 1.2, 0.7), "", Color.WHITE, yaw)
+	props.stand("copier", p + axis * Vector3(-1.2, 0, 0), yaw, Color(0.82, 0.83, 0.84))
+	props.stand("water_cooler", p + axis * Vector3(0.6, 0, 0.1), yaw, Color(0.86, 0.87, 0.88))
+	props.stand("dead_plant", p + axis * Vector3(1.5, 0, -0.2), yaw * 3.0, Color(0.92, 0.92, 0.9))
 
 
 ## Doors and big office windows along one wall, every 11 m, a door in the middle of every side.
@@ -1013,7 +1105,7 @@ func _office_openings(length: float) -> Array:
 ## A cluster of four desks: cover a soldier can crouch behind, and shoot over.
 func _desks(p: Vector3, yaw: float) -> void:
 	_low(p, Vector3(3.1, 1.25, 1.6), "", Color.WHITE, yaw)
-	props.stand("office_desks", p, yaw, Color(0.82, 0.83, 0.86) if _roll(p.x, p.z, 43.0) < 0.6 else Color(0.32, 0.33, 0.36))
+	props.stand("office_desks", p, yaw, Color(0.42, 0.43, 0.45) if _roll(p.x, p.z, 43.0) < 0.6 else Color(0.26, 0.27, 0.29))
 
 
 ## Two archive shelves back to back: taller than a man, full cover.
@@ -1022,7 +1114,7 @@ func _shelves(p: Vector3, yaw: float) -> void:
 	for k: float in [-1.05, 1.05]:
 		var q := p + axis * Vector3(k, 0, 0)
 		_low(q, Vector3(2.0, 2.1, 0.9), "", Color.WHITE, yaw)
-		props.stand("office_shelf", q + axis * Vector3(0, 0, -0.22), yaw, Color(0.86, 0.84, 0.8))
+		props.stand("office_shelf", q + axis * Vector3(0, 0, -0.22), yaw, Color(0.45, 0.43, 0.4))
 		props.stand("office_shelf", q + axis * Vector3(0, 0, 0.22), yaw + PI, Color(0.2, 0.3, 0.5))
 
 
@@ -1038,7 +1130,7 @@ func _office_lights(parent: Node3D) -> void:
 	if OS.has_feature("web"):
 		return
 	for at: Vector3 in _offices:
-		var lamp := _fill_light(parent, at, OFFICE_LIGHT, 22.0, 0.55)
+		var lamp := _fill_light(parent, at, OFFICE_LIGHT, 22.0, 0.35)
 		lamp.light_specular = 0.2
 
 

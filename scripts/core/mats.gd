@@ -27,7 +27,12 @@ const WORLD := {
 	"burlap": ["burlap", 1.0, 0.95, 0.0, 0.8],
 	"corrugated": ["corrugated", 2.0, 0.55, 0.5, 0.9],
 	"facade_night": ["facade_night", 26.0, 0.3, 0.2, 0.3],
+	"carpet": ["carpet", 2.0, 0.96, 0.0, 0.7],
+	"office_wall": ["office_wall", 2.4, 0.62, 0.0, 0.6],
+	"ceiling_tiles": ["ceiling_tiles", 2.4, 0.9, 0.0, 0.6],
 }
+## Indoors: the rain and the street's dirt never reach these.
+const INDOOR := ["carpet", "office_wall", "ceiling_tiles"]
 
 
 static func tex(name: String) -> Texture2D:
@@ -65,8 +70,8 @@ static func world(key: String) -> Material:
 	m.set_shader_parameter("normal_strength", float(spec[4]))
 	# The lit windows in the photo stay lit after dark.
 	m.set_shader_parameter("emission_energy", 0.55 if key == "facade_night" else 0.0)
-	m.set_shader_parameter("wet", _wet)
-	m.set_shader_parameter("grime", _grime)
+	m.set_shader_parameter("wet", 0.0 if key in INDOOR else _wet)
+	m.set_shader_parameter("grime", 0.12 if key in INDOOR else _grime)
 	_world[key] = m
 	return m
 
@@ -75,8 +80,9 @@ static func world(key: String) -> Material:
 static func set_climate(wet: float, grime: float) -> void:
 	_wet = wet
 	_grime = grime
-	for m: Material in _world.values():
-		if m is ShaderMaterial:
+	for key: String in _world:
+		var m: Material = _world[key]
+		if m is ShaderMaterial and not key in INDOOR:
 			(m as ShaderMaterial).set_shader_parameter("wet", wet)
 			(m as ShaderMaterial).set_shader_parameter("grime", grime)
 

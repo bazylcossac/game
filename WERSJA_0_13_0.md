@@ -46,6 +46,10 @@ Neonowa Dzielnica to teraz **Corp City**, stolica Korpo:
 - Deszcz i burza ustały, ulice zostały mokre, neony świecą dalej.
 - Każdy wieżowiec ma **parter z biurem**, do którego można wejść: drzwi i okna z każdej strony,
   biurka z monitorami, archiwa, szafy serwerowe, recepcje i kolumny. Meble dają osłonę.
+- Wnętrza biur są wykończone: wykładzina w płytki, panele ścienne od środka z parapetami i
+  świecącym pasem pod sufitem, sufit podwieszany z lampami w ramach, kanały wentylacyjne i korytka
+  kablowe, obłożone kolumny, kąciki z kopiarką, dystrybutorem wody i uschniętymi roślinami, a między
+  oknami ekrany z propagandą Korpo. Światło w środku jest zimne i przygaszone.
 - Na ekranach wiszą **reklamy Korpo** ("Ludzie są przestarzali", "Twoja praca jest już nasza"...),
   po polsku albo po angielsku, zależnie od języka gry.
 - Mapa rysuje się tak samo szybko jak wcześniej: meble rysują się tylko z bliska, w małych

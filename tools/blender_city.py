@@ -558,6 +558,50 @@ def reception():
         box(p, "screen", (x, 1.36, 0.1), (0.5, 0.32, 0.03), SCREEN, (0.3, 0, 0))
 
 
+def water_cooler():
+    """A water cooler, its bottle gone cloudy: nobody here drinks any more."""
+    p = begin("water_cooler")
+    box(p, "cabinet", (0, 0.5, 0), (0.34, 1.0, 0.34), PAINT, (0, 0, 0), 0.01)
+    box(p, "tap panel", (0, 0.86, -0.172), (0.22, 0.12, 0.01), DARK)
+    for x in (-0.05, 0.05):
+        box(p, "tap", (x, 0.85, -0.19), (0.03, 0.04, 0.04), CHROME)
+    box(p, "drip tray", (0, 0.72, -0.19), (0.24, 0.02, 0.08), STEEL)
+    turned(p, "bottle", [(0.0, 0.0), (0.0, 0.13), (0.34, 0.135), (0.4, 0.06), (0.42, 0.04)], GLASS, 14, 0.0, 0.0)
+    for o in PARTS[p][-1:]:
+        o.location = (0, 0, 1.0)
+        o.rotation_euler = (math.radians(-90), 0, 0)
+
+
+def dead_plant():
+    """An office plant in a white pot, long dead: grey stems and a few dry leaves."""
+    p = begin("dead_plant")
+    section(p, "pot", [(-0.22, 0.2, 0.2, 0.05), (0.22, 0.24, 0.24, 0.06)], PAINT, 0.01, 0, 0.22)
+    box(p, "soil", (0, 0.43, 0), (0.42, 0.02, 0.42), BURNT)
+    rnd = random.Random(5)
+    for i in range(7):
+        a = rnd.uniform(0, math.tau)
+        lean = rnd.uniform(0.1, 0.35)
+        top = (math.cos(a) * lean, rnd.uniform(1.0, 1.5), math.sin(a) * lean)
+        limb(p, "stem", [(0, 0.42, 0), (top[0] * 0.5, (0.42 + top[1]) * 0.5, top[2] * 0.5), top], [0.012, 0.008, 0.004], DEADWOOD, 5)
+        for k in range(2):
+            t = rnd.uniform(0.5, 0.95)
+            at = (top[0] * t, 0.42 + (top[1] - 0.42) * t, top[2] * t)
+            box(p, "dry leaf", at, (0.12, 0.01, 0.05), CANVAS, (rnd.uniform(-0.6, 0.6), rnd.uniform(0, 3), rnd.uniform(-0.9, -0.3)))
+
+
+def copier():
+    """A big office copier, its little screen still asking for paper."""
+    p = begin("copier")
+    box(p, "body", (0, 0.55, 0), (1.1, 1.1, 0.7), PAINT, (0, 0, 0), 0.02)
+    box(p, "lid", (0, 1.13, 0.02), (1.0, 0.06, 0.62), DARK, (0, 0, 0), 0.01)
+    box(p, "tray", (0.62, 0.8, 0), (0.18, 0.03, 0.4), STEEL)
+    for y in (0.22, 0.46):
+        box(p, "drawer line", (0, y, -0.352), (1.0, 0.012, 0.01), DARK)
+    box(p, "panel", (-0.3, 1.1, -0.3), (0.34, 0.04, 0.14), DARK, (0.4, 0, 0))
+    box(p, "screen", (-0.3, 1.115, -0.31), (0.2, 0.01, 0.08), SCREEN, (0.4, 0, 0))
+    box(p, "warning light", (-0.1, 1.11, -0.32), (0.03, 0.02, 0.03), TAIL)
+
+
 def duckboard():
     """Two metres of trench boards: slats nailed across a pair of runners."""
     p = begin("duckboard")
@@ -831,6 +875,9 @@ def main():
     server_rack()
     filing_cabinet()
     reception()
+    water_cooler()
+    dead_plant()
+    copier()
     wreck_car()
     wreck_truck()
     wreck_tank()

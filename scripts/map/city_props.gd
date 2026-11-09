@@ -10,7 +10,7 @@ const CHUNK := 128.0
 const SMALL_REACH := 340.0
 ## Furniture inside buildings is only seen through a window from close by: it is batched in small
 ## squares and stops being drawn soon, so a city of offices costs only the rooms around you.
-const INDOOR := ["office_desks", "office_shelf", "server_rack", "filing_cabinet", "reception"]
+const INDOOR := ["office_desks", "office_shelf", "server_rack", "filing_cabinet", "reception", "copier", "water_cooler", "dead_plant"]
 const INDOOR_CHUNK := 40.0
 const INDOOR_REACH := 70.0
 const LARGE := ["tree_oak", "tree_slim", "tree_palm", "bus", "lamp_city", "stump_a", "field_gun", "wreck_tank", "revetment", "boulder_a", "boulder_b"]

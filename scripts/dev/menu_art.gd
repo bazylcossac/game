@@ -61,6 +61,8 @@ const SCENES := [
 	{"name": "check_shield", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(14, 1.5, 106), "look": Vector3(14, 1.3, 100),
 		"men": [[0, 5, 12.5, 100, 12.5, 107, false, C.W.ENERGY_SHIELD], [0, 0, 15.5, 100, 15.5, 107, false, C.W.CARBINE, 1.0], [1, 0, 18, 100, 18, 107, false, C.W.ASSAULT, -1.0]]},
 	{"name": "check_office", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(-102, 1.7, 147), "look": Vector3(-130, 1.2, 116)},
+	{"name": "check_office_wall", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(-130, 1.7, 128), "look": Vector3(-138.5, 2.0, 140)},
+	{"name": "check_office_desk", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(-108, 1.2, 120), "look": Vector3(-120, 0.8, 132)},
 	{"name": "check_office_door", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(-118, 1.7, 100), "look": Vector3(-118, 2.0, 130)},
 	{"name": "check_ads", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(0, 2.0, 150), "look": Vector3(-40, 18, 110)},
 	{"name": "check_street", "mode": "pvp", "map": "neonowa_dzielnica", "cam": Vector3(10, 1.8, 180), "look": Vector3(0, 8, 60)},
