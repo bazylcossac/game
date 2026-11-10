@@ -288,11 +288,6 @@ func _draw_shield_gauge(s: Soldier, center: Vector2) -> void:
 		draw_line(center + d * (r - 6.0), center + d * (r + 6.0), Color(0, 0, 0, 0.8), 2.0, true)
 	draw_circle(center, 2.4, Color(0, 0, 0, 0.55))
 	draw_circle(center, 1.5, Color(0.95, 0.96, 0.92, 0.9))
-	var box := Rect2(center + Vector2(-44, r + 10), Vector2(88, 52))
-	draw_rect(box, Color(0.02, 0.03, 0.06, 0.62))
-	draw_rect(Rect2(box.position, Vector2(box.size.x, 2)), lit)
-	_text(_f_title, center + Vector2(-90, r + 46), "%d" % int(ceil(s.shield)), 36, lit, HORIZONTAL_ALIGNMENT_CENTER, 180)
-	_text(_f_semi, center + Vector2(-90, r + 59), "TARCZA", 14, Color(lit, 0.85), HORIZONTAL_ALIGNMENT_CENTER, 180)
 
 
 ## A cross that snaps open and settles: white for a hit, gold for the head, red for a kill.
