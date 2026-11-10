@@ -7,3 +7,7 @@ paczka_vps/
 __pycache__/
 *.blend1
 dist/
+launcher/node_modules/
+launcher/src-tauri/target/
+launcher/src-tauri/gen/
+launcher/release/

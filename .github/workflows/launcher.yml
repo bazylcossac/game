@@ -1,0 +1,63 @@
+name: Launcher Windows
+
+on:
+  push:
+    tags: ["launcher-v*"]
+    branches: ["main"]
+    paths: ["launcher/**", ".github/workflows/launcher.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: launcher-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: launcher
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: launcher/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: launcher/src-tauri -> target
+      - name: Zainstaluj zależności
+        run: npm ci
+      - name: Sprawdź interfejs i backend
+        run: |
+          npm run check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test --locked --manifest-path src-tauri/Cargo.toml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Zbuduj instalator Windows x64
+        run: npm run build -- --target x86_64-pc-windows-msvc
+      - name: Przygotuj pliki do pobrania
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          $installer = Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          if (-not $installer) { throw 'Nie znaleziono instalatora NSIS' }
+          Copy-Item -LiteralPath $installer.FullName -Destination release/CorpWars-Launcher-Setup.exe
+          Copy-Item -LiteralPath src-tauri/target/x86_64-pc-windows-msvc/release/CorpWars-Launcher.exe -Destination release/CorpWars-Launcher-portable.exe
+          Get-ChildItem release/*.exe | ForEach-Object { '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name } | Set-Content -Encoding ascii release/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CorpWars-Launcher-Windows
+          path: launcher/release/*
+      - name: Opublikuj launcher w Releases
+        if: startsWith(github.ref, 'refs/tags/launcher-v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME release/CorpWars-Launcher-Setup.exe release/CorpWars-Launcher-portable.exe release/SHA256SUMS.txt --verify-tag --latest=false --title "Corp Wars Launcher $($env:GITHUB_REF_NAME -replace '^launcher-v','')" --notes-file RELEASE_NOTES.md

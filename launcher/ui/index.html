@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Corp Wars Launcher</title><link rel="stylesheet" href="styles.css"><script src="app.js" defer></script></head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand"><span class="monogram" aria-hidden="true">CW</span><div><strong>CORP WARS</strong><small>GAME LAUNCHER</small></div></div>
+      <nav aria-label="Nawigacja"><button type="button" data-page="play" aria-current="page">Graj <span>01</span></button><button type="button" data-page="versions">Wersje <span>02</span></button><button type="button" data-page="download">Pobieranie <span id="job-count">03</span></button><button type="button" data-page="settings">Ustawienia <span>04</span></button></nav>
+      <div class="sidebar-footer"><span class="status-dot"></span> WINDOWS · X64<p id="launcher-version">Launcher 0.1.0</p><button type="button" class="text-button" id="open-releases">GitHub Releases ↗</button></div>
+    </aside>
+    <main>
+      <header class="topbar"><span id="selection-label">Najnowsza stabilna</span><button type="button" class="text-button" id="refresh">Sprawdź aktualizacje ↻</button></header>
+      <div class="notice" id="notice" role="status" hidden></div>
+      <section data-screen="play">
+        <div class="hero"><img src="city.jpg" alt="Neonowe ulice Corp City"><div class="hero-copy"><p class="eyebrow">WEJDŹ DO CORP CITY</p><h1>CORP WARS</h1><p class="tagline">OSTATNI BUNT LUDZI</p></div></div>
+        <div class="play-strip"><div><p class="eyebrow">TWOJA GRA</p><h2 id="installed-version">Sprawdzanie instalacji…</h2><p class="game-status" id="game-status">Łączenie z launcherem</p></div><div class="play-actions"><button type="button" class="primary large" id="play-action" disabled>CHWILA…</button><button type="button" class="text-button" id="play-existing" hidden>Graj w obecną wersję</button></div></div>
+        <div class="inline"><span class="muted" id="policy-label">Jedna instalacja. Twoja wybrana wersja.</span><button type="button" class="text-button" data-page="versions">Zmień wersję ↗</button></div>
+        <div class="release-news"><div><p class="eyebrow">DOSTĘPNE WYDANIE</p><h3 id="news-title">Pobieranie katalogu…</h3><p class="muted" id="news-date"></p></div><p id="news-notes">Aktualne wydania pojawią się tutaj po sprawdzeniu GitHuba.</p></div>
+      </section>
+      <section data-screen="versions" hidden>
+        <div class="section-heading"><p class="eyebrow">TWOJA INSTALACJA</p><h2>Wybierz, w co grasz.</h2><p>Zmiana wersji zastępuje obecną. Zawsze zostaje jedna.</p></div>
+        <label class="channel"><input type="radio" name="channel" value="stable"><span><strong>Najnowsza stabilna</strong><small id="stable-label">Sprawdzanie wydań…</small></span><span class="badge">Zalecane</span></label>
+        <label class="channel"><input type="radio" name="channel" value="testing"><span><strong>Kanał testowy</strong><small id="testing-label">Sprawdzanie wydań…</small></span><span class="badge">Testowy</span></label>
+        <div class="list-heading"><h3>Przypnij konkretne wydanie</h3><span class="muted">Windows x64</span></div>
+        <div id="release-list"></div>
+        <p class="bottom-note">Przypięta wersja pozostaje bez automatycznych aktualizacji. Aby wrócić do aktualizacji, wybierz najnowszą stabilną. Powrót do starszej wersji wymaga ponownego pobrania.</p>
+      </section>
+      <section data-screen="download" hidden>
+        <div class="section-heading"><p class="eyebrow">AKTUALIZACJA GRY</p><h2 id="download-title">Brak aktywnego pobierania.</h2><p id="download-subtitle">Nowa paczka zostanie sprawdzona przed podmianą gry.</p></div>
+        <div class="download-panel"><div class="inline"><h3 id="transfer-version">—</h3><span class="badge" id="transfer-phase">Gotowa</span></div><div class="track" id="progress" role="progressbar" aria-label="Postęp pobierania" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-fill"></div></div><div class="inline muted counters"><span id="transfer-bytes">Brak oczekujących plików</span><span id="transfer-percent"></span></div><ol class="steps"><li data-step="1">01 · Pobieranie</li><li data-step="2">02 · Sprawdzanie</li><li data-step="3">03 · Instalowanie</li></ol><p id="transfer-message" role="status"></p><div class="actions"><button type="button" class="primary" id="download-action">Sprawdź aktualizacje</button><button type="button" id="cancel" hidden>Anuluj</button></div></div>
+        <p class="bottom-note">Podmiana poczeka na zamknięcie gry. Po zakończeniu stara wersja i plik tymczasowy zostaną usunięte; zapisy i ustawienia pozostaną.</p>
+      </section>
+      <section data-screen="settings" hidden>
+        <div class="section-heading"><p class="eyebrow">PREFERENCJE</p><h2>Gotowy, kiedy Ty.</h2><p>Wybierz, jak launcher ma przygotowywać grę.</p></div>
+        <label class="setting"><span><strong>Automatyczne aktualizacje</strong><small>Sprawdzaj wydania po otwarciu launchera i co 30 minut. Aktualizuj zainstalowaną grę, gdy jest zamknięta. Przypięta wersja pozostaje bez zmian.</small></span><input type="checkbox" id="auto-update"></label>
+        <label class="setting"><span><strong>Minimalizuj po uruchomieniu gry</strong><small>Launcher pozostaje dostępny po zakończeniu rozgrywki.</small></span><input type="checkbox" id="minimize"></label>
+        <div class="storage"><p class="eyebrow">JEDNA INSTALACJA</p><h3 id="storage-version">Corp Wars</h3><code id="install-path"></code><p>Zapisy gry są przechowywane osobno. Cofnięcie wersji nie usuwa ustawień ani zapisów, ale starsza gra może nie obsługiwać ich nowego formatu.</p></div>
+        <div class="inline"><span class="muted" id="integrity-status">Pliki sprawdzane po każdym pobraniu i przed grą.</span><button type="button" id="verify">Sprawdź pliki</button></div>
+        <p class="bottom-note">Aktualizacje samego launchera znajdziesz na stronie GitHub Releases. Obecna wersja obsługuje pełne paczki Windows x64.</p>
+      </section>
+      <footer><span id="footer-install">Jedna instalacja gry</span><span id="footer-network">Katalog GitHub</span></footer>
+    </main>
+  </div>
+  <dialog id="confirm"><form method="dialog"><span class="badge">ZMIANA WERSJI</span><h2 id="confirm-title"></h2><p id="confirm-copy"></p><p>Zapisy i ustawienia pozostaną. W każdej chwili możesz wybrać inne wydanie.</p><div class="actions"><button type="submit" value="cancel">Wróć</button><button type="submit" class="primary" value="install">Zastąp wersję</button></div></form></dialog>
+</body>
+</html>
