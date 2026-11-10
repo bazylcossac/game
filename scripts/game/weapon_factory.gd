@@ -176,6 +176,35 @@ static func _energy_shield(r: Node3D, team: int) -> void:
 	_muzzle(r, Vector3(0, 0.12, -0.46))
 
 
+## The plate forming: a line of light shoots up out of the emitter, flickers, and spreads sideways
+## into the full shield.
+static func deploy_shield(owner: Node, plate: Node3D) -> void:
+	plate.scale = Vector3(0.03, 0.02, 1.0)
+	var t := owner.create_tween()
+	t.tween_property(plate, "scale", Vector3(0.03, 1.0, 1.0), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	for i in 3:
+		t.tween_property(plate, "visible", false, 0.03)
+		t.tween_property(plate, "visible", true, 0.03)
+	t.tween_property(plate, "scale", Vector3.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## The plate going out. Put away, it folds back into a line and is gone; broken, it stutters,
+## jerks and collapses. Either way it has already been taken off the weapon, so the weapon change
+## does not wait for it.
+static func collapse_shield(owner: Node, plate: Node3D, broken: bool) -> void:
+	var t := owner.create_tween()
+	if broken:
+		for i in 5:
+			t.tween_property(plate, "visible", false, 0.035)
+			t.tween_property(plate, "scale", Vector3(randf_range(0.6, 1.15), randf_range(0.5, 1.05), 1.0), 0.0)
+			t.tween_property(plate, "visible", true, 0.035)
+		t.tween_property(plate, "scale", Vector3(1.25, 0.02, 1.0), 0.09).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_IN)
+	else:
+		t.tween_property(plate, "scale", Vector3(0.03, 1.0, 1.0), 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		t.tween_property(plate, "scale", Vector3(0.03, 0.02, 1.0), 0.1)
+	t.tween_callback(plate.queue_free)
+
+
 ## Korpo's liquidator: the weapon in use straight ahead, the other arm beside it. Both come from
 ## the droid model, so first person shows the same arms everyone else sees.
 const ARM_SPLIT := 0.42

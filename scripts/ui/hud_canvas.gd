@@ -5,6 +5,8 @@ extends Control
 const HIT_TIME := 0.32
 const HIT_TIME_KILL := 0.55
 
+var _shield_shown := 1.0
+var _shield_flash := 0.0
 var world: World
 var killed_by: Soldier = null
 var killed_with := -1
@@ -237,6 +239,9 @@ func _draw_crosshair(c: PlayerController) -> void:
 	var s: Soldier = world.local
 	var center := size * 0.5
 	var col := Color(0.95, 0.96, 0.92, 0.9)
+	if s.weapon().get("shield", false):
+		_draw_shield_gauge(s, center)
+		return
 	if s.is_melee():
 		draw_arc(center, 9.0, 0, TAU, 28, col, 1.6, true)
 		draw_circle(center, 1.4, col)
@@ -259,6 +264,35 @@ func _draw_crosshair(c: PlayerController) -> void:
 		draw_line(center + d * g, center + d * (g + l), col, 2.0)
 	draw_circle(center, 2.4, shade)
 	draw_circle(center, 1.5, col)
+
+
+## The shield's health right under the crosshair, where the eyes already are: an arc that drains
+## and a number, blue while it holds, red when it is about to go, and a flash on every hit.
+func _draw_shield_gauge(s: Soldier, center: Vector2) -> void:
+	var frac := clampf(s.shield / C.SHIELD_HP, 0.0, 1.0)
+	if frac < _shield_shown - 0.001:
+		_shield_flash = 1.0
+	_shield_shown = frac
+	_shield_flash = maxf(_shield_flash - get_process_delta_time() * 4.0, 0.0)
+	var col: Color = UiKit.BLUE if frac > 0.3 else UiKit.RED
+	var lit := col.lerp(Color.WHITE, _shield_flash * 0.7)
+	var r := 52.0 + _shield_flash * 4.0
+	var from := PI * 0.5 + 1.1
+	var to := PI * 0.5 - 1.1
+	draw_arc(center, r, from, to, 48, Color(0, 0, 0, 0.6), 12.0, true)
+	draw_arc(center, r, from, from + (to - from) * frac, 48, lit, 8.0, true)
+	# Ticks every 25 points, so a glance tells how many hits are left.
+	for i in range(1, 4):
+		var a := from + (to - from) * i / 4.0
+		var d := Vector2(cos(a), sin(a))
+		draw_line(center + d * (r - 6.0), center + d * (r + 6.0), Color(0, 0, 0, 0.8), 2.0, true)
+	draw_circle(center, 2.4, Color(0, 0, 0, 0.55))
+	draw_circle(center, 1.5, Color(0.95, 0.96, 0.92, 0.9))
+	var box := Rect2(center + Vector2(-44, r + 10), Vector2(88, 52))
+	draw_rect(box, Color(0.02, 0.03, 0.06, 0.62))
+	draw_rect(Rect2(box.position, Vector2(box.size.x, 2)), lit)
+	_text(_f_title, center + Vector2(-90, r + 46), "%d" % int(ceil(s.shield)), 36, lit, HORIZONTAL_ALIGNMENT_CENTER, 180)
+	_text(_f_semi, center + Vector2(-90, r + 59), "TARCZA", 14, Color(lit, 0.85), HORIZONTAL_ALIGNMENT_CENTER, 180)
 
 
 ## A cross that snaps open and settles: white for a hit, gold for the head, red for a kill.

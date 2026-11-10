@@ -12,7 +12,7 @@ const VARIANTS := {
 	"laser_pistol": 3, "laser_rifle": 3, "laser_assault": 3, "laser_smg": 3, "laser_marksman": 3,
 	"laser_revolver": 3, "laser_heavy": 3, "laser_plasma": 3, "laser_minigun": 3, "mech_launcher": 3, "thunder_near": 2, "thunder_far": 2, "laser_scatter": 3, "laser_sniper": 3, "laser_rail": 3,
 	"laser_suppressed": 3, "mech_cannon": 3, "tank_fire": 2, "sword_swing": 3, "sword_clash": 2,
-	"sword_hit": 2, "deflect": 2, "impact_wall": 3, "impact_body": 3, "explosion": 2,
+	"sword_hit": 2, "deflect": 2, "shield_hit": 3, "impact_wall": 3, "impact_body": 3, "explosion": 2,
 	"death": 5, "hurt": 4, "droid_death": 3, "droid_hurt": 3,
 }
 ## The same sound again within this many milliseconds adds noise, not impact.

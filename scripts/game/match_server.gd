@@ -1333,8 +1333,9 @@ func apply_damage(v: Soldier, amount: float, attacker: Soldier, weapon_id: int, 
 		if v.shield <= 0.0:
 			v.shield = 0.0
 			v.shield_ready = false
-			v.switch_to(0)
+			# Told first, so every picture of it shatters instead of simply going out.
 			Net.broadcast(&"shield_broken", [v.sid])
+			v.switch_to(0)
 		if amount <= 0.0:
 			if attacker != null and attacker != v:
 				Net.send_to_owner(attacker, &"hit_confirm", [1])

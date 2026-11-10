@@ -82,6 +82,8 @@ const SWINGS := [
 ]
 
 var team := 0
+## Set just before the shield is taken away because it broke, so it goes out the hard way.
+var shield_broken_next := false
 var weapon_id := -1
 var weapon_parts: Array = []
 ## How fast the sights come up, set from the weapon's stats.
@@ -233,10 +235,18 @@ func _place_forearm(mi: MeshInstance3D, hand: Vector3, elbow: Vector3) -> void:
 func set_weapon(id: int, parts: Array = []) -> void:
 	if id == weapon_id and parts == weapon_parts:
 		return
+	var was_shield := weapon_id == C.W.ENERGY_SHIELD
 	weapon_id = id
 	weapon_parts = parts
 	_raise = 1.0
 	_swing = -1.0
+	if gun and was_shield and gun.get_node_or_null("Plate"):
+		var old_plate := gun.get_node("Plate") as Node3D
+		old_plate.reparent(self)
+		WeaponFactory.collapse_shield(self, old_plate, shield_broken_next)
+		if not shield_broken_next:
+			Sfx.play("shield_off", -6.0)
+	shield_broken_next = false
 	if gun:
 		gun.queue_free()
 	if arm_r:
@@ -256,6 +266,9 @@ func set_weapon(id: int, parts: Array = []) -> void:
 		_viewmodel_surfaces(_round)
 	_build_arms()
 	P.to_viewmodel(holder)
+	if id == C.W.ENERGY_SHIELD and gun.get_node_or_null("Plate"):
+		WeaponFactory.deploy_shield(self, gun.get_node("Plate"))
+		Sfx.play("shield_on", -4.0)
 	_set_cockpit(false)
 	sword_light.light_energy = 0.0
 	if C.is_blade(id):

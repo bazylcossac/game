@@ -607,20 +607,27 @@ func on_shield_broken(sid: int) -> void:
 		return
 	s.shield_ready = false
 	s.shield = 0.0
+	# Only a body still holding the plate: if it has already put it away there is nothing to break.
+	if s.model is SoldierModel and (s.model as SoldierModel).weapon_id == C.W.ENERGY_SHIELD:
+		(s.model as SoldierModel).shield_broken_next = true
 	if s == local and controller:
+		(controller.get("vm") as ViewModel).shield_broken_next = true
 		controller.call("_switch", 0)
 	if fx:
-		var at := s.global_position + Vector3.UP * 1.1
-		fx.sparks(at, Vector3.UP, C.TEAM_COLORS[s.team], 30)
-		fx.flash(at, C.TEAM_COLORS[s.team], 5.0, 6.0, 0.12)
-		Sfx.play_at("sword_off", at, 4.0, 0.7)
+		var at := s.global_position + Vector3.UP * 1.1 + Basis(Vector3.UP, s.yaw) * Vector3(0, 0, -0.6)
+		fx.sparks(at, Vector3.UP, C.TEAM_COLORS[s.team], 40)
+		fx.flash(at, C.TEAM_COLORS[s.team], 6.0, 7.0, 0.15)
+		if s == local:
+			Sfx.play("shield_break", 0.0)
+		else:
+			Sfx.play_at("shield_break", at, 4.0)
 
 
 ## A shot stopped by a shield: a ripple of sparks where it struck.
 func on_shield_hit(pos: Vector3) -> void:
 	if fx:
 		fx.sparks(pos, Vector3.UP, Color(0.6, 0.85, 1.0), 8)
-		Sfx.play_at("deflect", pos, -4.0, randf_range(0.9, 1.15))
+		Sfx.play_at("shield_hit", pos, -1.0, randf_range(0.94, 1.06))
 
 
 func on_clash(pos: Vector3) -> void:

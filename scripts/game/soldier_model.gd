@@ -61,6 +61,8 @@ const SWINGS := [
 ]
 
 var team := 0
+## Set just before the shield is taken away because it broke, so it goes out the hard way.
+var shield_broken_next := false
 ## How far the body leans round a corner, -1 left to 1 right, set by the soldier before each pose.
 var lean := 0.0
 var pelvis: Node3D
@@ -463,8 +465,16 @@ func _apply_transparency(node: Node, value: float) -> void:
 func set_weapon(id: int, parts: Array = []) -> void:
 	if id == weapon_id and parts == weapon_parts:
 		return
+	var was_shield := weapon_id == C.W.ENERGY_SHIELD
 	weapon_id = id
 	weapon_parts = parts
+	if weapon_node and was_shield and weapon_node.get_node_or_null("Plate"):
+		var old_plate := weapon_node.get_node("Plate") as Node3D
+		old_plate.reparent(self)
+		WeaponFactory.collapse_shield(self, old_plate, shield_broken_next)
+		if is_visible_in_tree() and not shield_broken_next:
+			Sfx.play_at("shield_off", old_plate.global_position, -4.0)
+	shield_broken_next = false
 	if weapon_node:
 		weapon_node.queue_free()
 	if C.WEAPONS[id].get("arm", false):
@@ -476,6 +486,13 @@ func set_weapon(id: int, parts: Array = []) -> void:
 		muzzle.position = ARM_MUZZLE[id]
 		weapon_node.add_child(muzzle)
 		(elbow_l if id == C.W.ARM_ROCKETS else elbow_r).add_child(weapon_node)
+	elif id == C.W.ENERGY_SHIELD:
+		# Built whole rather than folded, so the plate can be animated on its own.
+		weapon_node = WeaponFactory.build(id, team, parts)
+		holder.add_child(weapon_node)
+		WeaponFactory.deploy_shield(self, weapon_node.get_node("Plate"))
+		if is_visible_in_tree():
+			Sfx.play_at("shield_on", global_position + Vector3.UP * 1.2, -2.0)
 	else:
 		weapon_node = WeaponFactory.third_person(id, team, parts)
 		holder.add_child(weapon_node)

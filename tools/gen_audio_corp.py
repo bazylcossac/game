@@ -216,6 +216,118 @@ def ambience():
     save("ambient_neon", out, 0.7)
 
 
+# ---------------------------------------------------------------- the energy shield
+
+def tail(x, seconds, wet, dark):
+    """Reverb for a one-shot: room is made for the tail, so nothing wraps back onto the attack."""
+    padded = np.concatenate([x, np.zeros(int(SR * seconds * 1.2))])
+    return reverb(padded, seconds, wet, dark)
+
+
+def _crackle(d, density=0.5, decay=20.0, lo=2500.0):
+    """Electric sizzle: short bursts of bright noise that switch on and off at random."""
+    n = int(SR * d)
+    t = t_of(d)
+    gate = (rng.random(n // 64 + 1) < density).repeat(64)[:n].astype(float)
+    gate = np.convolve(gate, np.ones(32) / 32, mode="same")
+    return highpass(rng.normal(0, 1, n), lo) * gate * np.exp(-t * decay)
+
+
+def _ring(f, d, decay, wobble=0.0, drop=0.0):
+    """A struck tone with a slight downward bend: the field itself ringing where it was hit."""
+    t = t_of(d)
+    pitch = f * (1 - drop * (1 - np.exp(-t * 12))) * (1 + wobble * np.sin(2 * np.pi * 31 * t) * np.exp(-t * 8))
+    return np.sin(2 * np.pi * np.cumsum(pitch) / SR) * np.exp(-t * decay)
+
+
+def shield_hit(variant):
+    """A shot stopped by the shield: a soft heavy thump into the field, the field ringing like a
+    struck pane, and a crackle of discharge. Felt more than heard, so it never tires the ear."""
+    d = 0.42
+    t = t_of(d)
+    f = (640.0, 760.0, 880.0)[variant]
+    thump = np.sin(2 * np.pi * np.cumsum(95 * np.exp(-t * 6) + 48) / SR) * np.exp(-t * 16)
+    body = lowpass(rng.normal(0, 1, len(t)), 700) * np.exp(-t * 40) * 0.6
+    ring = _ring(f, d, 9.0, 0.012, 0.06) * 0.42 + _ring(f * 1.51, d, 14.0, 0.02, 0.05) * 0.22 + _ring(f * 2.76, d, 22.0) * 0.1
+    click = highpass(rng.normal(0, 1, len(t)), 4000) * np.exp(-t * 500) * 0.5
+    sizzle = _crackle(d, 0.45, 14.0) * 0.18
+    x = thump * 0.9 + body + ring + click + sizzle
+    save(f"shield_hit_{variant + 1}", tail(x, 0.5, 0.18, 4000.0), 0.85)
+
+
+def shield_on():
+    """Drawing the shield: a rising charge, a bright shimmer as the plate forms, then it locks."""
+    d = 0.75
+    t = t_of(d)
+    rise = 110 + 520 * (t / d) ** 1.6
+    charge = np.sin(2 * np.pi * np.cumsum(rise) / SR) + 0.5 * np.sin(4 * np.pi * np.cumsum(rise) / SR * 1.003)
+    env = np.minimum(t / 0.05, 1) * np.where(t < 0.45, 1.0, np.exp(-(t - 0.45) * 9))
+    shimmer = band(rng.normal(0, 1, len(t)), 3000, 9000) * np.sin(np.pi * np.clip(t / 0.5, 0, 1)) ** 2 * 0.15
+    lock = np.zeros(len(t))
+    k = int(0.42 * SR)
+    lt = t_of(0.3)
+    lock[k:k + len(lt)] = (np.sin(2 * np.pi * 70 * lt) * np.exp(-lt * 18) + _ring(1320, 0.3, 16) * 0.3)[: len(t) - k]
+    x = lowpass(charge * env, 2600) * 0.45 + shimmer + lock * 0.7
+    save("shield_on", tail(x, 0.6, 0.2, 4500.0), 0.8)
+
+
+def shield_off():
+    """Putting the shield away: the field drains down in pitch and the emitter clicks off."""
+    d = 0.55
+    t = t_of(d)
+    fall = 520 * np.exp(-t * 5) + 70
+    drain = np.sin(2 * np.pi * np.cumsum(fall) / SR) * np.exp(-t * 5)
+    x = lowpass(drain, 2200) * 0.5 + _crackle(d, 0.3, 9.0) * 0.12
+    x[:200] += np.linspace(0.3, 0, 200)
+    save("shield_off", tail(x, 0.5, 0.18, 4000.0), 0.7)
+
+
+def shield_break():
+    """The shield gives way: a heavy blow, the plate shattering into glassy splinters of light, and a
+    long discharge whining down."""
+    d = 1.3
+    t = t_of(d)
+    blow = np.sin(2 * np.pi * np.cumsum(140 * np.exp(-t * 8) + 40) / SR) * np.exp(-t * 7) * 1.2
+    blow += lowpass(rng.normal(0, 1, len(t)), 500) * np.exp(-t * 14) * 0.8
+    shards = np.zeros(len(t))
+    for _ in range(46):
+        at = int(abs(rng.normal(0.03, 0.12)) * SR)
+        dd = rng.uniform(0.04, 0.25)
+        piece = _ring(rng.uniform(2200, 7000), dd, rng.uniform(25, 60)) * rng.uniform(0.05, 0.16)
+        end = min(at + len(piece), len(t))
+        shards[at:end] += piece[: end - at]
+    whine = np.sin(2 * np.pi * np.cumsum(900 * np.exp(-t * 2.2) + 60) / SR) * np.exp(-t * 2.6) * 0.3
+    x = blow + shards + lowpass(whine, 3000) + _crackle(d, 0.55, 3.5) * 0.25
+    save("shield_break", tail(x, 1.2, 0.25, 5000.0), 0.9)
+
+
+def deflect(variant):
+    """A laser bolt turned aside by a blade: a bright, short zing that flies off, not a clang."""
+    d = 0.32
+    t = t_of(d)
+    f = (1900.0, 2300.0)[variant]
+    zing = np.sin(2 * np.pi * np.cumsum(f * (1 + 0.35 * np.exp(-t * 30)) * (1 - 0.25 * t / d)) / SR) * np.exp(-t * 16)
+    sub = np.sin(2 * np.pi * np.cumsum(260 * np.exp(-t * 10) + 120) / SR) * np.exp(-t * 22) * 0.6
+    snap = highpass(rng.normal(0, 1, len(t)), 3000) * np.exp(-t * 160) * 0.6
+    x = zing * 0.5 + sub + snap + _crackle(d, 0.4, 24.0) * 0.12
+    save(f"deflect_{variant + 1}", tail(x, 0.45, 0.16, 6000.0), 0.8)
+
+
+def shield_sounds():
+    for i in range(3):
+        shield_hit(i)
+    shield_on()
+    shield_off()
+    shield_break()
+    for i in range(2):
+        deflect(i)
+
+
 if __name__ == "__main__":
-    music()
-    ambience()
+    import sys
+    if "--shield" in sys.argv:
+        shield_sounds()
+    else:
+        music()
+        ambience()
+        shield_sounds()
