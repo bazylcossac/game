@@ -1,6 +1,6 @@
 Launcher Corp Wars na Windows x64.
 
-- **CorpWars-Launcher-Setup.exe** — zalecany instalator. Tworzy skróty i sprawdza dostępność WebView2. Nie wymaga uprawnień administratora.
+- **[CorpWars-Launcher.exe](https://github.com/bazylcossac/game/releases/download/launcher-v0.1.0/CorpWars-Launcher.exe)** — launcher na Windows, zalecany dla graczy. Instaluje aplikację, tworzy skróty i sprawdza dostępność WebView2. Nie wymaga uprawnień administratora.
 - **CorpWars-Launcher-portable.exe** — uruchomienie bez instalatora; wymaga obecnego WebView2. Gra nadal ma jeden wspólny katalog instalacji w profilu użytkownika.
 - **SHA256SUMS.txt** — sumy kontrolne pobranych plików.
 

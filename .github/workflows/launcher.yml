@@ -48,7 +48,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path release | Out-Null
           $installer = Get-ChildItem src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*-setup.exe | Select-Object -First 1
           if (-not $installer) { throw 'Nie znaleziono instalatora NSIS' }
-          Copy-Item -LiteralPath $installer.FullName -Destination release/CorpWars-Launcher-Setup.exe
+          Copy-Item -LiteralPath $installer.FullName -Destination release/CorpWars-Launcher.exe
           Copy-Item -LiteralPath src-tauri/target/x86_64-pc-windows-msvc/release/CorpWars-Launcher.exe -Destination release/CorpWars-Launcher-portable.exe
           Get-ChildItem release/*.exe | ForEach-Object { '{0}  {1}' -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant(), $_.Name } | Set-Content -Encoding ascii release/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
@@ -60,4 +60,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME release/CorpWars-Launcher-Setup.exe release/CorpWars-Launcher-portable.exe release/SHA256SUMS.txt --verify-tag --latest=false --title "Corp Wars Launcher $($env:GITHUB_REF_NAME -replace '^launcher-v','')" --notes-file RELEASE_NOTES.md
+          gh release create $env:GITHUB_REF_NAME release/CorpWars-Launcher.exe release/CorpWars-Launcher-portable.exe release/SHA256SUMS.txt --verify-tag --latest=false --title "Corp Wars Launcher $($env:GITHUB_REF_NAME -replace '^launcher-v','')" --notes-file RELEASE_NOTES.md

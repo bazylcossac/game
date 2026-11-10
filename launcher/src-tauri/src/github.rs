@@ -213,7 +213,7 @@ mod tests {
         let digest = format!("sha256:{}", "a".repeat(64));
         assert!(convert(raw(
             "launcher-v0.1.0",
-            "CorpWars-Launcher-Setup.exe",
+            "CorpWars-Launcher.exe",
             Some(&digest)
         ))
         .is_none());

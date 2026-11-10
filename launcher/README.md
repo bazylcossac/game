@@ -4,9 +4,9 @@ Natywny launcher Windows x64: Tauri 2, Rust i lokalny interfejs bez zewnętrznyc
 
 ## Pobieranie
 
-[Installer Windows](https://github.com/bazylcossac/game/releases/download/launcher-v0.1.0/CorpWars-Launcher-Setup.exe) · [Wydanie launchera](https://github.com/bazylcossac/game/releases/tag/launcher-v0.1.0)
+[Pobierz launcher na Windows](https://github.com/bazylcossac/game/releases/download/launcher-v0.1.0/CorpWars-Launcher.exe) · [Wydanie launchera](https://github.com/bazylcossac/game/releases/tag/launcher-v0.1.0)
 
-Zalecany plik: `CorpWars-Launcher-Setup.exe`. Wydanie zawiera również pojedynczy EXE portable i sumy SHA-256. Launcher jest wydawany pod tagami `launcher-v*`; gra pod tagami `v*` i `najnowsza`. Opublikowanie launchera nie zmienia „latest” gry i nie uruchamia wdrożenia serwera.
+Zalecany plik dla graczy: **`CorpWars-Launcher.exe`** — instaluje launcher, tworzy skróty i sprawdza dostępność WebView2. Opcjonalnie dostępny jest wariant portable oraz sumy SHA-256. Launcher jest wydawany pod tagami `launcher-v*`; gra pod tagami `v*` i `najnowsza`. Opublikowanie launchera nie zmienia „latest” gry i nie uruchamia wdrożenia serwera.
 
 ## Działanie
 
