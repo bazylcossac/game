@@ -1,19 +1,31 @@
-name: Buildy
+name: Gra - build na zadanie i deploy VPS
 
-# Builds the game for Windows and macOS on every push to main and on tags like v0.10.0.
-# The files land on the Releases page: "najnowsza" always holds the last build of main.
+# Client exports consume Actions minutes only when explicitly dispatched.
+# A push to main keeps the existing VPS deployment, without exporting clients.
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      task_id:
+        description: Panel task UUID
+        required: true
+        type: string
+      build_id:
+        description: Panel build UUID (idempotency key)
+        required: true
+        type: string
+      commit_sha:
+        description: Full pushed commit SHA to export
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
+  group: game-${{ github.event_name }}-${{ inputs.build_id || github.ref }}
+  cancel-in-progress: false
 
 env:
   GODOT_VERSION: 4.7.2-stable
@@ -21,10 +33,47 @@ env:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      TASK_ID: ${{ inputs.task_id }}
+      BUILD_ID: ${{ inputs.build_id }}
+      COMMIT_SHA: ${{ inputs.commit_sha }}
     steps:
+      - name: Sprawdz zlecenie
+        id: validate
+        env:
+          CI_TOKEN: ${{ secrets.CI_TOKEN }}
+        run: |
+          node <<'NODE'
+          const uuid = /^[a-f0-9-]{36}$/;
+          if (!uuid.test(process.env.TASK_ID) || !uuid.test(process.env.BUILD_ID) ||
+              !/^[a-f0-9]{40}$/.test(process.env.COMMIT_SHA) || (process.env.CI_TOKEN || '').length < 32) {
+            throw new Error('Invalid panel inputs or missing CI_TOKEN. No export started.');
+          }
+          NODE
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          persist-credentials: false
+
+      - name: Zglos rozpoczecie do panelu
+        env:
+          CI_TOKEN: ${{ secrets.CI_TOKEN }}
+        run: |
+          node <<'NODE'
+          const body = { taskId: process.env.TASK_ID, buildId: process.env.BUILD_ID,
+            commit: process.env.COMMIT_SHA, status: 'running', result: 'Budowanie Windows i macOS.',
+            runUrl: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` };
+          (async () => {
+            const response = await fetch('https://giera-panel.vercel.app/api/ci/builds', {
+              method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${process.env.CI_TOKEN}` },
+              body: JSON.stringify(body), signal: AbortSignal.timeout(15000), redirect: 'error' });
+            if (!response.ok) throw new Error(`Panel HTTP ${response.status}. No export started.`);
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
 
       - name: Pamięć podręczna Godota
         id: godot-cache
@@ -79,26 +128,45 @@ jobs:
           path: dist/*
           compression-level: 0
 
-      - name: Opublikuj najnowszy build
-        if: github.ref == 'refs/heads/main'
+      - name: Opublikuj wersje zadania
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete najnowsza --cleanup-tag --yes || true
-          gh release create najnowsza dist/* --prerelease --title "Najnowszy build" --target "${GITHUB_SHA}" --notes "Automatyczny build z commita ${GITHUB_SHA}."
+          gh release create "panel-${BUILD_ID}" dist/* --prerelease --title "Build ${COMMIT_SHA:0:7}" --target "$COMMIT_SHA" --notes "Build na zadanie z panelu. Task: ${TASK_ID}. Commit: ${COMMIT_SHA}."
+          gh release view "panel-${BUILD_ID}" --json url,assets > "$RUNNER_TEMP/panel-release.json"
 
-      - name: Opublikuj wydanie
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Zglos wynik do panelu
+        if: always() && steps.validate.outcome == 'success'
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" dist/* --title "${GITHUB_REF_NAME}" --generate-notes
+          CI_TOKEN: ${{ secrets.CI_TOKEN }}
+          BUILD_STATUS: ${{ job.status }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const ok = process.env.BUILD_STATUS === 'success';
+          const release = ok ? JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/panel-release.json`, 'utf8')) : null;
+          const body = { taskId: process.env.TASK_ID, buildId: process.env.BUILD_ID,
+            commit: process.env.COMMIT_SHA, status: ok ? 'succeeded' : 'failed',
+            result: ok ? 'Wersja Windows i macOS gotowa do pobrania.' : 'Build nie powiodl sie. Sprawdz logi GitHuba.',
+            runUrl: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+            ...(release ? { releaseUrl: release.url, downloads: release.assets.map(file => ({ name: file.name, url: file.url })) } : {}) };
+          (async () => {
+            for (let attempt = 0; attempt < 3; attempt++) {
+              try {
+                const response = await fetch('https://giera-panel.vercel.app/api/ci/builds', {
+                  method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${process.env.CI_TOKEN}` },
+                  body: JSON.stringify(body), signal: AbortSignal.timeout(15000), redirect: 'error' });
+                if (response.ok) return;
+                throw new Error(`Panel HTTP ${response.status}`);
+              } catch (error) { if (attempt === 2) throw error; }
+            }
+          })().catch(error => { console.error(error.message); process.exitCode = 1; });
+          NODE
 
-  # After a good build of main, the dedicated server on the VPS gets the same commit, so the
-  # "najnowsza" download and the server always run the same version. Needs the repository
-  # secrets VPS_HOST, VPS_SSH_KEY (a key only for this) and VPS_KNOWN_HOSTS (the server's host key).
+  # Existing source-based VPS deployment. Independent from optional client exports.
+  # Needs VPS_HOST, VPS_SSH_KEY and VPS_KNOWN_HOSTS repository secrets.
   deploy:
-    needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
