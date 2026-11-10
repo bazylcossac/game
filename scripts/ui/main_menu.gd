@@ -6,7 +6,7 @@ signal play_offline(cfg: Dictionary)
 signal host_game(cfg: Dictionary, port: int)
 signal join_game(address: String, port: int)
 
-const FULL_PAGES := ["battle", "host", "team"]
+const FULL_PAGES := ["battle", "host", "team", "settings"]
 const SIDE_ART := ["side_usa", "side_imperium"]
 const SIDE_ICONS := ["res://assets/textures/icon_usa.png", "res://assets/textures/icon_empire.png"]
 const SIDE_NOTES := ["Ostatni ludzie. Złom, laser i wściekłość.", "Sztuczna inteligencja w garniturze. Wydajność, posłuszeństwo, likwidacja."]

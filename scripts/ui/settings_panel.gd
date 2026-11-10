@@ -4,6 +4,15 @@ extends VBoxContainer
 
 signal closed
 
+## The way back, kept below the scrolling body so it is always on screen.
+var back_button: Button
+## Holds both columns; scrolls when the screen is too short for all of them.
+var body_scroll: ScrollContainer
+## Inside a centred popup nobody hands the panel a height, so it fits its body to the screen
+## itself, leaving `fit_reserve` pixels for the popup's own frame.
+var fit_screen := false
+var fit_reserve := 0.0
+
 const CONTROLS := [
 	["WSAD", "Ruch"], ["Mysz", "Rozglądanie"], ["LPM", "Strzał / cięcie"], ["PPM", "Celowanie / blok mieczem"],
 	["Shift", "Sprint"], ["Spacja", "Skok"], ["Ctrl / C", "Kucanie"], ["R", "Przeładowanie"],
@@ -16,9 +25,14 @@ func _ready() -> void:
 	add_child(UiKit.label("USTAWIENIA", 42, UiKit.INK, "title"))
 	add_child(UiKit.accent_bar())
 
+	body_scroll = ScrollContainer.new()
+	body_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	add_child(body_scroll)
 	var cols := HBoxContainer.new()
 	cols.add_theme_constant_override("separation", 40)
-	add_child(cols)
+	cols.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body_scroll.add_child(cols)
 	var left := VBoxContainer.new()
 	left.add_theme_constant_override("separation", 14)
 	left.custom_minimum_size = Vector2(430, 0)
@@ -72,13 +86,36 @@ func _ready() -> void:
 		grid.add_child(UiKit.label(pair[1], 20, UiKit.MUTED))
 	right.add_child(grid)
 
-	var back := UiKit.button("ZAPISZ I WRÓĆ")
-	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	back.custom_minimum_size = Vector2(280, 54)
-	back.pressed.connect(func() -> void:
-		Settings.save_settings()
-		closed.emit())
-	add_child(back)
+	back_button = UiKit.button("ZAPISZ I WRÓĆ")
+	back_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back_button.custom_minimum_size = Vector2(280, 54)
+	back_button.pressed.connect(close)
+	add_child(back_button)
+
+	get_viewport().size_changed.connect(_fit)
+	visibility_changed.connect(_fit)
+	_fit.call_deferred()
+
+
+## Esc leads back out of the settings, before the pause menu or the fight can take it.
+func _input(event: InputEvent) -> void:
+	if is_visible_in_tree() and (event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel")):
+		get_viewport().set_input_as_handled()
+		close()
+
+
+func close() -> void:
+	Settings.save_settings()
+	closed.emit()
+
+
+func _fit() -> void:
+	if not fit_screen or body_scroll == null or not is_inside_tree():
+		return
+	var body := (body_scroll.get_child(0) as Control).get_combined_minimum_size().y
+	var frame := get_combined_minimum_size().y - body_scroll.custom_minimum_size.y
+	var room := get_viewport().get_visible_rect().size.y - fit_reserve - frame
+	body_scroll.custom_minimum_size.y = clampf(room, 160.0, body)
 
 
 func _check(title: String, value: bool, on_change: Callable) -> CheckBox:
