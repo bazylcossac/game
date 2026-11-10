@@ -32,7 +32,7 @@ robotów w czarnych garniturach.
   Wyciągnięta przed siebie zatrzymuje strzały, granaty i ciosy z przodu, w sumie 100 obrażeń.
   Przez tarczę widać, ale z nią w ręku nie da się strzelać. Rozbita wraca do miniguna i ładuje się
   15 sekund; schowana też się ładuje. Pasek ładowania widać pod zdrowiem i przy ikonie tarczy.
-- Z tarczą w ręku **jej stan widać pod celownikiem**: półokrąg z podziałką co 25, niebieski,
+- Z tarczą w ręku **jej stan widać pod celownikiem**: pasek w półokręgu, niebieski,
   a poniżej 30 czerwony. Mruga przy każdym trafieniu.
 - Tarcza **odpala się z animacją**: z emitera wyskakuje pionowa kreska światła, mruga i rozkłada się
   na całą płytę. Schowana składa się z powrotem w kreskę, a rozbita trzeszczy, szarpie się i zapada.

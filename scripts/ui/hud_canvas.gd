@@ -281,11 +281,6 @@ func _draw_shield_gauge(s: Soldier, center: Vector2) -> void:
 	var to := PI * 0.5 - 1.1
 	draw_arc(center, r, from, to, 48, Color(0, 0, 0, 0.6), 12.0, true)
 	draw_arc(center, r, from, from + (to - from) * frac, 48, lit, 8.0, true)
-	# Ticks every 25 points, so a glance tells how many hits are left.
-	for i in range(1, 4):
-		var a := from + (to - from) * i / 4.0
-		var d := Vector2(cos(a), sin(a))
-		draw_line(center + d * (r - 6.0), center + d * (r + 6.0), Color(0, 0, 0, 0.8), 2.0, true)
 	draw_circle(center, 2.4, Color(0, 0, 0, 0.55))
 	draw_circle(center, 1.5, Color(0.95, 0.96, 0.92, 0.9))
 
