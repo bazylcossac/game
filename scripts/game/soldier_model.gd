@@ -22,18 +22,10 @@ const SHIN := 0.45
 const STAND_HIP := 0.95
 const SWING_TIME := 0.5
 const THROW_TIME := 0.62
-const DETAIL_RANGE := 42.0
-## Class id to its modelled kit in trooper_parts.glb.
-const GEAR_MODELS := {
-	"medic": "Gear_medic", "sniper": "Gear_sniper", "engineer": "Gear_engineer", "maccabee": "Gear_maccabee",
-	"commander": "Gear_leader", "hunter": "Gear_hunter", "marshal": "Gear_marshal", "servicer": "Gear_servicer",
-}
 const TROOPER_MODEL := "res://assets/models/armory/trooper_parts.glb"
 const DROID_MODEL := "res://assets/models/armory/droid_parts.glb"
 ## Where the liquidator's weapon arms end, below the elbow: the cannon's bore and the pod's tubes.
 const ARM_MUZZLE := {C.W.ARM_CANNON: Vector3(0.0, -0.56, 0.0), C.W.ARM_ROCKETS: Vector3(0.0, -0.49, -0.07)}
-## A heavy droid stands this much taller than the others, on the same skeleton.
-const BIG_FRAME_SCALE := 1.13
 
 ## Blade poses in torso space: [time, hand, blade rotation, torso twist].
 const SWINGS := [
@@ -65,13 +57,18 @@ var team := 0
 var shield_broken_next := false
 ## How far the body leans round a corner, -1 left to 1 right, set by the soldier before each pose.
 var lean := 0.0
+## A model looked at on its own, such as the class preview, always wears its finest meshes.
+var always_fine := false
+## The joints the poses turn. The skinned body copies them onto its bones after every pose.
 var pelvis: Node3D
 var torso: Node3D
 var head: Node3D
 var shoulder_r: Node3D
 var elbow_r: Node3D
+var hand_r: Node3D
 var shoulder_l: Node3D
 var elbow_l: Node3D
+var hand_l: Node3D
 var hip_r: Node3D
 var knee_r: Node3D
 var ankle_r: Node3D
@@ -114,202 +111,71 @@ var _local_vel := Vector2.ZERO
 var _grounded := true
 var _reloading := false
 var _sprinting := false
-var _gear: Node3D
-var _head_gear: Node3D
-var _frame := ""
-var _frame_parts: Array[Node3D] = []
+var _rig: CharAssets.Rig
+var _rig_key := ""
+var _skeleton: Skeleton3D
+## The joint that drives each bone of the skeleton, in the skeleton's order.
+var _bone_joints: Array[Node3D] = []
+## Each bone's place in the body, worked out from its joint and its parent's, and how much
+## thicker than the modelled body this class makes it.
+var _bone_placed: Array[Transform3D] = []
+var _bone_girth: Array[Vector3] = []
+var _build: Array = CharAssets.DEFAULT_BUILD
+## How much further forward a deep chest pushes whatever the hands hold.
+var _chest_reach := 0.0
+var _look: Array = []
+var _tint := Color.BLACK
+var _worn: Array[MeshInstance3D] = []
 var _jet_flames: Node3D
 var _cloak_shown := -1.0
-var _flaps: Array[Node3D] = []
 var _nade: Node3D
 var _nade_items: Array[Node3D] = []
 var _trail: BladeTrail
 
 
-## Bakes every body, class kit and standard weapon during loading, so that the first
-## soldier to spawn with each of them does not stall the match.
+## Loads every body and standard weapon during loading, so that the first soldier to spawn with
+## each of them does not stall the match.
 static func warm_bodies() -> void:
+	CharAssets.warm()
 	for team in 2:
-		var m := SoldierModel.new()
-		m.setup(team)
 		for class_id in C.CLASSES[team].size():
 			var cd := C.cls(team, class_id)
 			if cd.get("mech", false) or cd.get("vehicle", false):
 				continue
-			if cd.has("frame"):
-				m._apply_frame(cd["frame"])
-			m._build_gear(cd)
 			for weapon: int in cd["weapons"]:
 				if not C.WEAPONS[weapon].get("arm", false):
 					WeaponFactory.third_person(weapon, team).free()
-		m.free()
 
 
-func _cloth(color: Color) -> Material:
-	return Mats.cloth(color)
-
-
-## Small parts are skipped beyond detail range and cast no shadow: nobody can see them there.
-static func _fine(mi: MeshInstance3D) -> MeshInstance3D:
-	mi.visibility_range_end = DETAIL_RANGE
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return mi
+func _joint(parent: Node3D) -> Node3D:
+	var n := Node3D.new()
+	parent.add_child(n)
+	return n
 
 
 func setup(new_team: int) -> void:
 	team = new_team
-	var empire := team == C.Team.EMPIRE
-	# The cheap far body, in the same colours as the modelled one: black suits, or patched cloth.
-	var coat: Material = _cloth(Color(0.07, 0.07, 0.08)) if empire else _cloth(Color(0.3, 0.28, 0.22))
-	var coat_dark: Material = _cloth(Color(0.04, 0.04, 0.05)) if empire else _cloth(Color(0.2, 0.19, 0.16))
-	var trousers: Material = _cloth(Color(0.07, 0.07, 0.08)) if empire else _cloth(Color(0.2, 0.23, 0.28))
-	var leather: Material = Mats.flat(Color(0.03, 0.03, 0.03) if empire else Color(0.27, 0.18, 0.11), 0.3 if empire else 0.46)
-	var strap: Material = Mats.flat(Color(0.05, 0.05, 0.06) if empire else Color(0.34, 0.29, 0.2), 0.7)
-	var helmet: Material = Mats.flat(Color(0.78, 0.76, 0.72), 0.3, 0.05) if empire else _cloth(Color(0.2, 0.19, 0.16))
-	var mask: Material = _cloth(Color(0.08, 0.08, 0.085))
-	var metal: Material = Mats.flat(Color(0.42, 0.44, 0.47), 0.36, 0.85)
-	var glow: Material = Mats.glow(C.TEAM_COLORS[team], 2.4 if empire else 1.8)
-	var scarf: Material = _cloth(Color(0.86, 0.86, 0.85) if empire else Color(0.62, 0.07, 0.05))
-	var accent: Material = _cloth(Color(0.04, 0.04, 0.05) if empire else Color(0.62, 0.07, 0.05))
-
-	pelvis = Node3D.new()
-	pelvis.position.y = STAND_HIP
-	add_child(pelvis)
-	P.cyl(pelvis, 0.19, 0.17, 0.2, Vector3(0, -0.02, 0), trousers, Vector3.ZERO, Vector3(1, 1, 0.72), 10)
-	P.cyl(pelvis, 0.2, 0.2, 0.055, Vector3(0, 0.09, 0), leather, Vector3.ZERO, Vector3(1, 1, 0.74), 10)
-	_fine(P.box(pelvis, Vector3(0.06, 0.05, 0.012), Vector3(0, 0.09, -0.15), metal))
-	_fine(P.box(pelvis, Vector3(0.1, 0.13, 0.07), Vector3(0.2, -0.02, -0.02), leather))
-	_fine(P.cyl(pelvis, 0.05, 0.05, 0.15, Vector3(-0.2, -0.03, 0.05), strap, Vector3.ZERO, Vector3.ONE, 8))
-	# Coat skirts hang from the belt and swing as separate flaps.
-	for side: float in [-1.0, 1.0]:
-		var flap := Node3D.new()
-		flap.position = Vector3(0.095 * side, 0.06, 0.02)
-		pelvis.add_child(flap)
-		var length := 0.12 if empire else 0.24
-		P.box(flap, Vector3(0.2, length, 0.26), Vector3(0, -length * 0.5, 0), coat)
-		_flaps.append(flap)
-
-	torso = Node3D.new()
-	torso.position.y = 0.08
-	pelvis.add_child(torso)
-	P.cyl(torso, 0.21, 0.185, 0.28, Vector3(0, 0.14, 0), coat, Vector3.ZERO, Vector3(1, 1, 0.74), 12)
-	P.ball(torso, 0.25, Vector3(0, 0.36, 0), coat, Vector3(1.04, 0.86, 0.72))
-	P.cyl(torso, 0.1, 0.26, 0.09, Vector3(0, 0.55, 0), coat_dark, Vector3.ZERO, Vector3(1, 1, 0.7), 12)
-	P.cyl(torso, 0.092, 0.11, 0.09, Vector3(0, 0.62, 0), scarf, Vector3.ZERO, Vector3.ONE, 10)
-	# Chest rig: crossed straps and energy cell pouches with lit tips.
-	P.box(torso, Vector3(0.05, 0.56, 0.02), Vector3(0.08, 0.3, -0.18), strap, Vector3(-0.08, 0, 0.3))
-	P.box(torso, Vector3(0.05, 0.56, 0.02), Vector3(-0.08, 0.3, -0.18), strap, Vector3(-0.08, 0, -0.3))
-	P.box(torso, Vector3(0.3, 0.13, 0.05), Vector3(0, 0.14, -0.175), strap)
-	for x: float in [-0.1, 0.0, 0.1]:
-		_fine(P.box(torso, Vector3(0.082, 0.12, 0.05), Vector3(x, 0.16, -0.2), leather))
-		P.box(torso, Vector3(0.05, 0.014, 0.01), Vector3(x, 0.2, -0.228), glow)
-	P.box(torso, Vector3(0.2, 0.018, 0.01), Vector3(0, 0.41, -0.2), glow, Vector3(-0.1, 0, 0))
-	if empire:
-		for y: float in [0.08, 0.2, 0.32, 0.44]:
-			_fine(P.ball(torso, 0.011, Vector3(0.1, y, -0.172), metal))
-		for side: float in [-1.0, 1.0]:
-			_fine(P.box(torso, Vector3(0.11, 0.018, 0.07), Vector3(0.21 * side, 0.525, 0), accent, Vector3(0, 0, -0.26 * side)))
-	else:
-		_fine(P.box(torso, Vector3(0.1, 0.1, 0.02), Vector3(0.13, 0.36, -0.2), coat_dark, Vector3(-0.08, 0, 0)))
-	# Pack with a rolled blanket on top.
-	P.box(torso, Vector3(0.32, 0.38, 0.14), Vector3(0, 0.29, 0.2), coat_dark)
-	P.cyl(torso, 0.06, 0.06, 0.38, Vector3(0, 0.51, 0.2), trousers, Vector3(0, 0, PI * 0.5), Vector3.ONE, 8)
-	_fine(P.box(torso, Vector3(0.05, 0.06, 0.02), Vector3(0.1, 0.32, 0.28), leather))
-	_fine(P.box(torso, Vector3(0.05, 0.06, 0.02), Vector3(-0.1, 0.32, 0.28), leather))
-	P.cyl(torso, 0.012, 0.012, 0.3, Vector3(0, 0.42, 0.28), glow, Vector3(0, 0, PI * 0.5), Vector3.ONE, 6)
-	if not empire:
-		# A scarf end that trails behind the shoulder.
-		var tail := Node3D.new()
-		tail.position = Vector3(0.05, 0.6, 0.1)
-		torso.add_child(tail)
-		P.box(tail, Vector3(0.09, 0.3, 0.02), Vector3(0, -0.15, 0.02), scarf)
-		_flaps.append(tail)
-
-	head = Node3D.new()
-	head.position.y = 0.53
-	torso.add_child(head)
-	P.ball(head, 0.112, Vector3(0, 0.08, 0), mask, Vector3(0.95, 1.08, 1.0))
-	if empire:
-		P.ball(head, 0.135, Vector3(0, 0.125, 0), helmet, Vector3(1.03, 0.9, 1.1))
-		P.box(head, Vector3(0.17, 0.042, 0.04), Vector3(0, 0.075, -0.105), glow)
-		P.cyl(head, 0.05, 0.042, 0.1, Vector3(0, -0.005, -0.1), mask, Vector3(PI * 0.5, 0, 0), Vector3.ONE, 10)
-		_fine(P.cyl(head, 0.03, 0.03, 0.05, Vector3(0.07, -0.02, -0.08), metal, Vector3(PI * 0.5, 0, 0.5), Vector3.ONE, 8))
-	else:
-		P.ball(head, 0.134, Vector3(0, 0.12, 0), helmet, Vector3(1.05, 0.82, 1.1))
-		P.cyl(head, 0.19, 0.2, 0.016, Vector3(0, 0.1, 0.0), helmet, Vector3.ZERO, Vector3(1, 1, 1.05), 14)
-		for side: float in [-1.0, 1.0]:
-			P.box(head, Vector3(0.086, 0.052, 0.03), Vector3(0.052 * side, 0.07, -0.105), glow)
-			_fine(P.cyl(head, 0.034, 0.034, 0.016, Vector3(0.052 * side, 0.07, -0.122), metal, Vector3(PI * 0.5, 0, 0), Vector3.ONE, 10))
-		P.box(head, Vector3(0.215, 0.012, 0.02), Vector3(0, 0.07, -0.098), leather)
-		_fine(P.cyl(head, 0.044, 0.05, 0.05, Vector3(0, -0.01, -0.1), scarf, Vector3(PI * 0.5, 0, 0), Vector3.ONE, 10))
-	_fine(P.box(head, Vector3(0.012, 0.13, 0.012), Vector3(0.115, 0.0, -0.02), strap))
-	_fine(P.box(head, Vector3(0.012, 0.13, 0.012), Vector3(-0.115, 0.0, -0.02), strap))
-
-	var arm := func(side: float) -> Array:
-		var sh := Node3D.new()
-		sh.position = Vector3(0.28 * side, 0.47, 0)
-		torso.add_child(sh)
-		P.ball(sh, 0.086, Vector3.ZERO, coat, Vector3(1.05, 1.0, 1.0))
-		P.cyl(sh, 0.074, 0.056, UPPER_ARM, Vector3(0, -UPPER_ARM * 0.5, 0), coat, Vector3.ZERO, Vector3.ONE, 10)
-		if side < 0.0:
-			P.cyl(sh, 0.073, 0.069, 0.075, Vector3(0, -0.13, 0), accent, Vector3.ZERO, Vector3.ONE, 10)
-		var el := Node3D.new()
-		el.position.y = -UPPER_ARM
-		sh.add_child(el)
-		P.ball(el, 0.058, Vector3.ZERO, coat_dark)
-		P.cyl(el, 0.056, 0.042, FOREARM - 0.03, Vector3(0, -FOREARM * 0.46, 0), coat, Vector3.ZERO, Vector3.ONE, 10)
-		P.cyl(el, 0.048, 0.05, 0.06, Vector3(0, -FOREARM + 0.05, 0), leather, Vector3.ZERO, Vector3.ONE, 10)
-		P.box(el, Vector3(0.075, 0.09, 0.05), Vector3(0, -FOREARM - 0.02, 0), leather)
-		_fine(P.box(el, Vector3(0.07, 0.05, 0.03), Vector3(0, -FOREARM - 0.08, -0.018), leather))
-		_fine(P.capsule(el, 0.013, 0.06, Vector3(0.042 * side, -FOREARM - 0.02, -0.018), leather))
-		return [sh, el]
-	var ar: Array = arm.call(1.0)
-	shoulder_r = ar[0]
-	if not empire:
-		_fine(Forge.decal(shoulder_r, "flag_usa", Vector2(0.1, 0.0625), Vector3(0.082, -0.1, 0.0), Vector3(0, PI * 0.5, 0)))
-	elbow_r = ar[1]
-	var al: Array = arm.call(-1.0)
-	shoulder_l = al[0]
-	elbow_l = al[1]
-
-	var leg := func(side: float) -> Array:
-		var hip := Node3D.new()
-		hip.position = Vector3(0.1 * side, -0.05, 0)
-		pelvis.add_child(hip)
-		P.cyl(hip, 0.096, 0.07, THIGH, Vector3(0, -THIGH * 0.5, 0), trousers, Vector3.ZERO, Vector3.ONE, 10)
-		if not empire:
-			_fine(P.box(hip, Vector3(0.05, 0.13, 0.13), Vector3(0.09 * side, -0.2, 0), strap))
-		var kn := Node3D.new()
-		kn.position.y = -THIGH
-		hip.add_child(kn)
-		P.ball(kn, 0.07, Vector3.ZERO, trousers)
-		_fine(P.ball(kn, 0.064, Vector3(0, 0, -0.026), leather, Vector3(0.9, 1.0, 0.6)))
-		P.cyl(kn, 0.07, 0.054, SHIN - 0.17, Vector3(0, -(SHIN - 0.17) * 0.5, 0), trousers, Vector3.ZERO, Vector3.ONE, 10)
-		P.cyl(kn, 0.07, 0.062, 0.22, Vector3(0, -SHIN + 0.11, 0), leather, Vector3.ZERO, Vector3.ONE, 10)
-		var ank := Node3D.new()
-		ank.position.y = -SHIN
-		kn.add_child(ank)
-		P.box(ank, Vector3(0.105, 0.075, 0.27), Vector3(0, -0.012, -0.06), leather)
-		P.ball(ank, 0.056, Vector3(0, -0.005, -0.18), leather, Vector3(0.95, 0.7, 1.2))
-		_fine(P.box(ank, Vector3(0.114, 0.018, 0.29), Vector3(0, -0.05, -0.06), strap))
-		return [hip, kn, ank]
-	var lr: Array = leg.call(1.0)
-	hip_r = lr[0]
-	knee_r = lr[1]
-	ankle_r = lr[2]
-	var ll: Array = leg.call(-1.0)
-	hip_l = ll[0]
-	knee_l = ll[1]
-	ankle_l = ll[2]
-
-	holder = Node3D.new()
-	torso.add_child(holder)
-	P.merge(self)
-	_add_imported_body()
+	pelvis = _joint(self)
+	torso = _joint(pelvis)
+	head = _joint(torso)
+	shoulder_r = _joint(torso)
+	elbow_r = _joint(shoulder_r)
+	hand_r = _joint(elbow_r)
+	shoulder_l = _joint(torso)
+	elbow_l = _joint(shoulder_l)
+	hand_l = _joint(elbow_l)
+	hip_r = _joint(pelvis)
+	knee_r = _joint(hip_r)
+	ankle_r = _joint(knee_r)
+	hip_l = _joint(pelvis)
+	knee_l = _joint(hip_l)
+	ankle_l = _joint(knee_l)
+	holder = _joint(torso)
+	_dress(CharAssets.DEFAULT_LOOK[team], CharAssets.DEFAULT_SKIN if team == C.Team.RESISTANCE else Color.BLACK)
 	_nade = Node3D.new()
-	_nade.position = Vector3(0, -FOREARM - 0.09, -0.04)
+	_nade.position = Vector3(0, -0.09, -0.04)
 	_nade.visible = false
-	elbow_r.add_child(_nade)
+	hand_r.add_child(_nade)
 	for kind in C.NADE_NAMES.size():
 		var item := Node3D.new()
 		_nade.add_child(item)
@@ -317,116 +183,111 @@ func setup(new_team: int) -> void:
 		_nade_items.append(item)
 
 
-func _add_imported_body() -> void:
-	# The existing inexpensive body becomes a distant LOD. Both use the same joint pivots.
-	_set_legacy_range(self)
-	if team == C.Team.EMPIRE:
-		_apply_frame("Reg")
-		return
-	var imported := ModelAssets.load_model(TROOPER_MODEL, team, true)
-	var bones := {"Pelvis": pelvis, "Torso": torso, "Head": head, "UpperArm_R": shoulder_r, "UpperArm_L": shoulder_l, "Forearm_R": elbow_r, "Forearm_L": elbow_l, "Thigh_R": hip_r, "Thigh_L": hip_l, "Shin_R": knee_r, "Shin_L": knee_l, "Boot_R": ankle_r, "Boot_L": ankle_l}
-	for label: String in bones:
-		var part := imported.find_child(label, true, false) as Node3D
-		if part:
-			part.reparent(bones[label], false)
-			ModelAssets.flatten(part)
-			for mesh: MeshInstance3D in part.get_children():
-				mesh.visibility_range_end = 53
-	imported.free()
-
-
-func _set_legacy_range(node: Node3D) -> void:
-	for child in node.get_children():
-		if child is MeshInstance3D:
-			child.visibility_range_begin = 53
-			child.visibility_range_end = 0
-		elif child is Node3D:
-			_set_legacy_range(child)
-
-
 func set_loadout(new_weapon: int, class_id: int, parts: Array = []) -> void:
-	set_weapon(new_weapon, parts)
 	var cd := C.cls(team, class_id)
-	if cd.has("frame"):
-		_apply_frame(cd["frame"])
-	_build_gear(cd)
+	_dress(CharAssets.look(team, String(cd["id"])), CharAssets.tint(team, cd), CharAssets.build(String(cd["id"])))
+	_fit_extras(cd)
+	set_weapon(new_weapon, parts)
 	_cloak_shown = -1.0
 
 
-func _fit_gear(label: String, onto: Node3D = null) -> void:
-	var imported := ModelAssets.load_model(DROID_MODEL if team == C.Team.EMPIRE else TROOPER_MODEL, team, true)
-	var part := imported.find_child(label, true, false) as Node3D
-	part.reparent(onto if onto else _gear, false)
-	part.transform = Transform3D.IDENTITY
-	ModelAssets.flatten(part)
-	imported.free()
-
-
-## The Empire's machines differ per class, so the body is put on when the class is known.
-func _apply_frame(frame: String) -> void:
-	if frame == _frame:
+## Puts on a look, [file, body, head, gear], on a body of the given build. Another file means
+## another skeleton.
+func _dress(look_of: Array, tint: Color, build: Array = CharAssets.DEFAULT_BUILD) -> void:
+	if look_of == _look and tint == _tint and build == _build:
 		return
-	_frame = frame
-	for part: Node3D in _frame_parts:
-		part.free()
-	_frame_parts.clear()
-	scale = Vector3.ONE * (BIG_FRAME_SCALE if frame == "Big" else 1.0)
-	var imported := ModelAssets.load_model(DROID_MODEL, team, true)
-	var bones := {"Pelvis": pelvis, "Torso": torso, "Head": head, "UpperArm_R": shoulder_r, "UpperArm_L": shoulder_l, "Forearm_R": elbow_r, "Forearm_L": elbow_l, "Thigh_R": hip_r, "Thigh_L": hip_l, "Shin_R": knee_r, "Shin_L": knee_l, "Boot_R": ankle_r, "Boot_L": ankle_l}
-	for label: String in bones:
-		var part := imported.find_child("%s_%s" % [frame, label], true, false) as Node3D
-		if part:
-			part.reparent(bones[label], false)
-			ModelAssets.flatten(part)
-			for mesh: MeshInstance3D in part.get_children():
-				mesh.visibility_range_end = 53
-			_frame_parts.append(part)
-	imported.free()
+	var rebuilt: bool = look_of[0] != _rig_key
+	if rebuilt:
+		_rig_key = look_of[0]
+		_rig = CharAssets.rig(_rig_key)
+		if _skeleton:
+			_skeleton.free()
+		_worn.clear()
+		_skeleton = CharAssets.skeleton(_rig)
+		add_child(_skeleton)
+	if rebuilt or build != _build:
+		_build = build
+		_shape()
+	if rebuilt or look_of != _look or tint != _tint:
+		for mi in _worn:
+			mi.free()
+		_worn.clear()
+		for label: String in look_of.slice(1):
+			if label != "":
+				_worn.append_array(CharAssets.fit(_skeleton, _rig, label, team, tint, always_fine))
+	_look = look_of
+	_tint = tint
+	_sync()
 
 
-## Class gear hung on the shared body, so a class reads at a glance from a distance.
-func _build_gear(cd: Dictionary) -> void:
-	var id := String(cd["id"])
-	if _gear:
-		_gear.free()
-	if _head_gear:
-		_head_gear.free()
-		_head_gear = null
-	_jet_flames = null
-	_gear = Node3D.new()
-	torso.add_child(_gear)
-	var model: String = GEAR_MODELS.get(id, "")
-	if model != "":
-		_fit_gear(model)
-	if model == "Gear_leader" or model == "Gear_marshal":
-		_head_gear = Node3D.new()
-		head.add_child(_head_gear)
-		_fit_gear(model + "_head", _head_gear)
-	if cd.has("tie"):
-		# Korpo's rank and trade: one tie per class, the only colour on a black suit.
-		var tie := Node3D.new()
-		_gear.add_child(tie)
-		_fit_gear("Tie_Big" if cd.get("frame", "") == "Big" else "Tie", tie)
-		var silk: Material = Mats.flat(C.TIE_COLORS[cd["tie"]], 0.38, 0.05)
-		for mi: MeshInstance3D in tie.find_children("*", "MeshInstance3D", true, false):
-			var current := mi.material_override as StandardMaterial3D
-			# Everything but the chrome clip takes the class colour.
-			if current and current.metallic < 0.5:
-				mi.material_override = silk
-	var glow: Material = Mats.glow(C.TEAM_COLORS[team], 1.8)
-	match id:
-		"medic", "servicer":
-			var green: Material = Mats.glow(Color(0.3, 1.0, 0.5), 2.0)
-			P.box(_gear, Vector3(0.16, 0.042, 0.006), Vector3(0, 0.3, 0.348), green)
-			P.box(_gear, Vector3(0.042, 0.16, 0.006), Vector3(0, 0.3, 0.348), green)
-		"maccabee":
-			P.box(_gear, Vector3(0.06, 0.2, 0.01), Vector3(0, 0.32, 0.332), glow)
-			_jet_flames = Node3D.new()
-			_gear.add_child(_jet_flames)
-			for side: float in [-1.0, 1.0]:
-				P.cyl(_jet_flames, 0.07, 0.0, 0.6, Vector3(0.155 * side, -0.36, 0.3), Mats.glow(Color(0.5, 0.8, 1.0), 3.0))
-			_jet_flames.visible = false
-	P.merge(_gear)
+## Sets the joints where this build has them, and how thick each bone makes its part of the mesh.
+func _shape() -> void:
+	var joints := {
+		"Pelvis": pelvis, "Torso": torso, "Head": head, "UpperArm_R": shoulder_r, "Forearm_R": elbow_r, "Hand_R": hand_r,
+		"UpperArm_L": shoulder_l, "Forearm_L": elbow_l, "Hand_L": hand_l, "Thigh_R": hip_r, "Shin_R": knee_r, "Boot_R": ankle_r,
+		"Thigh_L": hip_l, "Shin_L": knee_l, "Boot_L": ankle_l,
+	}
+	var wide: float = _build[1]
+	var deep: float = _build[2]
+	var arm: float = _build[3]
+	var leg: float = _build[4]
+	var hips: float = _build[5]
+	_bone_joints.clear()
+	_bone_girth.clear()
+	_bone_placed.resize(_rig.bones.size())
+	for i in _rig.bones.size():
+		var bone := _rig.bones[i]
+		var joint: Node3D = joints[bone]
+		var at := _rig.rests[i].origin
+		var girth := Vector3.ONE
+		if bone == "Pelvis":
+			girth = Vector3(hips, 1.0, lerpf(1.0, deep, 0.7))
+		elif bone == "Torso":
+			girth = Vector3(wide, 1.0, deep)
+		elif bone.begins_with("UpperArm"):
+			at.x *= wide
+			girth = Vector3(arm, 1.0, arm)
+		elif bone.begins_with("Forearm"):
+			girth = Vector3(arm, 1.0, arm)
+		elif bone.begins_with("Hand"):
+			girth = Vector3.ONE * lerpf(1.0, arm, 0.5)
+		elif bone.begins_with("Thigh"):
+			at.x *= hips
+			girth = Vector3(leg, 1.0, leg)
+		elif bone.begins_with("Shin"):
+			girth = Vector3(leg, 1.0, leg)
+		elif bone.begins_with("Boot"):
+			girth = Vector3(leg, 1.0, lerpf(1.0, leg, 0.5))
+		joint.position = at
+		_bone_joints.append(joint)
+		_bone_girth.append(girth)
+	_chest_reach = (deep - 1.0) * 0.13
+	scale = Vector3.ONE * float(_build[0])
+
+
+## Hands the posed joints to the bones. A joint's transform is its bone's, since the skeleton
+## rests with every bone unturned; the build's girth goes on last, in the bone's own space.
+func _sync() -> void:
+	for i in _bone_joints.size():
+		var placed := _bone_joints[i].transform
+		var parent := _rig.parents[i]
+		if parent >= 0:
+			placed = _bone_placed[parent] * placed
+		_bone_placed[i] = placed
+		_skeleton.set_bone_pose(i, placed.scaled_local(_bone_girth[i]))
+
+
+## What a class has that is not part of its mesh: the jump pack's flames.
+func _fit_extras(cd: Dictionary) -> void:
+	if _jet_flames:
+		_jet_flames.free()
+		_jet_flames = null
+	if cd.get("jetpack", false):
+		_jet_flames = Node3D.new()
+		torso.add_child(_jet_flames)
+		for side: float in [-1.0, 1.0]:
+			P.cyl(_jet_flames, 0.07, 0.0, 0.6, Vector3(0.155 * side, -0.36, 0.3), Mats.glow(Color(0.5, 0.8, 1.0), 3.0))
+		_jet_flames.visible = false
 
 
 ## Only tanks have a hull that turns separately.
@@ -535,6 +396,7 @@ func _pose_for_weapon() -> void:
 	elif weapon_node:
 		holder.transform = Transform3D(Basis.IDENTITY, _aim_pos)
 		_pose_arms(holder.transform * _grip_l)
+	_sync()
 
 
 ## Two-bone IK in torso space. `pole` is the direction the elbow bends toward.
@@ -675,7 +537,7 @@ func update_pose(delta: float, pos: Vector3, yaw: float, pitch: float, speed: fl
 	head.rotation = Vector3(pitch * 0.45 + _prone * PRONE_LEVEL, -torso.rotation.y * 0.5, -torso.rotation.z * 0.6)
 	# The hips shift a little the same way, so the head ends up near where the camera and hitbox put it.
 	pelvis.position.x += lean * 0.06
-	_animate_flaps(speed)
+	_sync()
 
 
 func _animate_legs(delta: float, speed: float) -> void:
@@ -745,6 +607,7 @@ func _animate_gun(pitch: float, sway: float, moving: float) -> void:
 	if _prone > 0.0:
 		pos += Vector3(0.0, 0.2, 0.05) * _prone
 		rot.x += PRONE_LEVEL * _prone
+	pos.z -= _chest_reach
 	holder.transform = Transform3D(Basis.from_euler(rot), pos)
 	if weapon_node == null:
 		return
@@ -835,14 +698,6 @@ func _update_trail() -> void:
 			_trail.push(base.lerp(tip.global_position, 0.55), tip.global_position)
 
 
-func _animate_flaps(speed: float) -> void:
-	var kick := clampf(speed / C.SPRINT_SPEED, 0.0, 1.0)
-	for i in _flaps.size():
-		var flap := _flaps[i]
-		var leg_swing := hip_r.rotation.x if i == 0 else hip_l.rotation.x
-		flap.rotation.x = kick * 0.4 + sin(_breath * 6.0 + i) * 0.05 * kick + leg_swing * 0.35 * (1.0 if i < 2 else 0.0)
-
-
 func _update_death(delta: float) -> void:
 	_corpse_t -= delta
 	if _corpse_t <= 0.0:
@@ -868,3 +723,4 @@ func _update_death(delta: float) -> void:
 	elbow_l.rotation = elbow_l.rotation.lerp(Vector3(0.9, 0.0, 0.0), minf(delta * 6.0, 1.0))
 	rotation.x = _fall_back * fall * (PI * 0.49)
 	position.y += fall * 0.16
+	_sync()

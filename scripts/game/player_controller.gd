@@ -649,6 +649,8 @@ func _camera_alive(delta: float) -> void:
 	if designating:
 		fov_target = Settings.fov * 0.34
 	camera.fov = lerpf(camera.fov, fov_target, minf(delta * 12.0, 1.0))
+	# A scope brings far soldiers close, so they are drawn with the meshes of nearer ones.
+	CharAssets.set_zoom(Settings.fov / camera.fov, get_tree())
 	var ads_now := s.aiming
 	vm.ads_rate = w["ads_speed"]
 	if s.is_vehicle() or s.is_mech() or s.riding >= 0:

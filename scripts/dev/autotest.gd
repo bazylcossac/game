@@ -16,6 +16,7 @@ extends Node
 ##   side-shots windowed: the game as the Iron Empire, see side_shots.gd.
 ##   droid-gallery windowed: every Empire machine and gun in a studio, see droid_gallery.gd.
 ##   char-gallery windowed: every foot soldier of both sides, posed, near and far, see char_gallery.gd.
+##   preview-flicker windowed: the deploy screen's class preview scored for flicker, see preview_flicker.gd.
 ##   menu-art windowed: stages the menu card pictures, see menu_art.gd and tools/menu_art.py.
 ##   lang: Polish and English text, format codes and screens, see lang_test.gd.
 ##   browser-net headless client against a real --server: the list, sides, ping, respawn, see browser_network.gd.
@@ -131,6 +132,7 @@ func _ready() -> void:
 		"neon": add_child(load("res://scripts/dev/neon_test.gd").new())
 		"droid-gallery": add_child(load("res://scripts/dev/droid_gallery.gd").new())
 		"char-gallery": add_child(load("res://scripts/dev/char_gallery.gd").new())
+		"preview-flicker": add_child(load("res://scripts/dev/preview_flicker.gd").new())
 		"lang": add_child(load("res://scripts/dev/lang_test.gd").new())
 		"browser-net": add_child(load("res://scripts/dev/browser_network.gd").new())
 		"respawn": add_child(load("res://scripts/dev/respawn_test.gd").new())

@@ -1,7 +1,11 @@
 extends Node
-## `--test=char-gallery --out=<dir> [--only=rebel|korpo] [--shots=lineup,detail,poses,far]`, windowed:
-## every foot soldier of both sides in a plain studio. Line-ups from the front and back, a close
-## look at each class, the poses that strain a body most, and the same body far away.
+## `--test=char-gallery --out=<dir> [--only=rebel|korpo] [--shots=lineup,detail,poses,far,flicker]`,
+## windowed: every foot soldier of both sides in a plain studio. Line-ups from the front and back,
+## a close look at each class, the poses that strain a body most, and the same body far away.
+##
+## `flicker` measures shimmer: soldiers stand still under the game's own anti-aliasing while the
+## camera drifts by a fraction of a pixel, and whatever changes between frames is flicker. It
+## prints a score per distance and saves the changes, amplified, as a picture.
 
 const POSES := [
 	# name, speed, pitch, crouching, prone, sprinting, seconds to settle
@@ -42,6 +46,8 @@ func _ready() -> void:
 			await _poses(team, label)
 		if "far" in _wanted:
 			await _far(team, label)
+		if "flicker" in _wanted:
+			await _flicker(team, label)
 	get_tree().quit(0)
 
 
@@ -175,6 +181,73 @@ func _far(team: int, label: String) -> void:
 	for body: SoldierModel in bodies:
 		body.free()
 	await get_tree().process_frame
+
+
+## Stillness test. The score is the mean change of the pixels that changed most (the top one in
+## a hundred) between frames, 0 to 255: a steady image scores under 2, visible shimmer over 6.
+func _flicker(team: int, label: String) -> void:
+	var ids := _classes(team)
+	var bodies: Array = []
+	for i in ids.size():
+		bodies.append(_spawn(team, ids[i], Vector3((i - (ids.size() - 1) * 0.5) * 1.05, 0, 0)))
+	await _settle(bodies, POSES[0])
+	get_viewport().use_taa = Settings.quality >= 2
+	for distance: float in [3.0, 5.0, 8.0, 14.0, 24.0, 45.0]:
+		_camera.fov = 70.0
+		var home := Vector3(distance * 0.25, 1.5, distance * 0.968)
+		_camera.position = home
+		_camera.look_at(Vector3(0, 1.0, 0))
+		for warm in 24:
+			await RenderingServer.frame_post_draw
+		var worst := Image.create(1920, 1080, false, Image.FORMAT_RGB8)
+		var last: Image = null
+		var total := 0.0
+		var frames := 10
+		for frame in frames:
+			# A drift far smaller than a pixel, as a held aim has.
+			_camera.position = home + Vector3(sin(frame * 1.7), cos(frame * 2.3), 0.0) * distance * 0.00015 * float(Settings.arg("drift", "1"))
+			await RenderingServer.frame_post_draw
+			var img := get_viewport().get_texture().get_image()
+			img.convert(Image.FORMAT_RGB8)
+			if last:
+				total += _difference(last, img, worst)
+			last = img
+		var score := total / (frames - 1)
+		print("[flicker] %s at %d m: %.2f" % [label, int(distance), score])
+		worst.save_png("%s/%s_migotanie_%d.png" % [out_dir, label, int(distance)])
+		last.save_png("%s/%s_spokoj_%d.png" % [out_dir, label, int(distance)])
+	get_viewport().use_taa = false
+	for body: SoldierModel in bodies:
+		body.free()
+	await get_tree().process_frame
+
+
+func _difference(a: Image, b: Image, worst: Image) -> float:
+	var da := a.get_data()
+	var db := b.get_data()
+	var dw := worst.get_data()
+	var bins := PackedInt32Array()
+	bins.resize(256)
+	var pixels := da.size() / 3
+	for i in pixels:
+		var d := maxi(absi(da[i * 3] - db[i * 3]), maxi(absi(da[i * 3 + 1] - db[i * 3 + 1]), absi(da[i * 3 + 2] - db[i * 3 + 2])))
+		bins[d] += 1
+		var shown := mini(d * 6, 255)
+		if shown > dw[i * 3]:
+			dw[i * 3] = shown
+			dw[i * 3 + 1] = shown
+			dw[i * 3 + 2] = shown
+	worst.set_data(1920, 1080, false, Image.FORMAT_RGB8, dw)
+	var want := pixels / 100
+	var taken := 0
+	var sum := 0.0
+	for d in range(255, -1, -1):
+		var n := mini(bins[d], want - taken)
+		sum += n * d
+		taken += n
+		if taken >= want:
+			break
+	return sum / maxf(taken, 1.0)
 
 
 func _shot(label: String) -> void:

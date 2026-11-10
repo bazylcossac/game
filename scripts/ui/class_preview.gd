@@ -17,7 +17,9 @@ func _ready() -> void:
 	mouse_default_cursor_shape = Control.CURSOR_DRAG
 	_viewport.own_world_3d = true
 	_viewport.transparent_bg = true
-	_viewport.msaa_3d = Viewport.MSAA_4X
+	# The model turns slowly in plain view, so its edges get the finest multisampling a desktop
+	# offers. TAA would do better still, but it loses the stage's transparent background.
+	_viewport.msaa_3d = Viewport.MSAA_4X if OS.has_feature("web") else Viewport.MSAA_8X
 	_viewport.handle_input_locally = false
 	add_child(_viewport)
 	_viewport.add_child(_stage)
@@ -62,6 +64,7 @@ func _ready() -> void:
 func show_kit(team: int, class_id: int, kit: Dictionary) -> void:
 	if _model == null:
 		_model = SoldierModel.new()
+		_model.always_fine = true
 		_model.setup(team)
 		_stage.add_child(_model)
 	var weapon: int = kit.get("primary", C.cls(team, class_id)["weapons"][0])

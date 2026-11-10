@@ -4,7 +4,7 @@ extends RefCounted
 
 const GAME_TITLE := "CORP WARS"
 const GAME_SUBTITLE := "OSTATNI BUNT LUDZI"
-const VERSION := "0.13.0"
+const VERSION := "0.14.0"
 const DEFAULT_PORT := 7777
 const MAX_PLAYERS := 16
 ## Spare connections, so a full server can still answer the server lists asking about it.

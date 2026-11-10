@@ -26,6 +26,10 @@ Buildy powstają w `.github/workflows/build.yml`. Tag w stylu `v0.10.0` tworzy o
 
 Godot leży w `C:\Users\stroj\Godot`. Jeśli go przeniesiesz, zmień ścieżkę w plikach `.bat`.
 
+Wersja 0.14.0 buduje postacie obu stron od nowa: roboty Korpo w garniturach, z ciemnymi stalowymi
+twarzami, i ludzi Rebelii w łatanych strojach bojowych, z osobną sylwetką dla każdej klasy.
+Zawiera też niewydane osobno 0.13.0. Szczegóły: `WERSJA_0_14_0.md`.
+
 Wersja 0.9.0 buduje Neonową Dzielnicę od nowa jako duże miasto 520 × 700 m z szerokimi alejami
 dla czołgów i mechów oraz zmienia balans: czołg pada po 6 rakietach, granaty go ranią, a strzały
 z broni ręcznej ledwo drapią. Szczegóły: `WERSJA_0_9_0.md`.

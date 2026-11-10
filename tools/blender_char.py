@@ -37,8 +37,11 @@ KIND_LOOK = {"cloth": (0.92, 0.0), "suit": (0.7, 0.0), "leather": (0.5, 0.0), "r
 ## Name -> (linear colour, kind). Each character script fills this in.
 PALETTE = {}
 PIECES = {}
+## What the previews paint the parts the game colours per class: ties, or skin.
+PREVIEW_TINT = [(0.5, 0.5, 0.5)]
 _BIND = ["Torso"]
 _LOD = [0]
+_UNSHADED = [False]
 _SHADE = {}
 
 UPPER_ARM, FOREARM, THIGH, SHIN = 0.29, 0.28, 0.45, 0.45
@@ -108,6 +111,15 @@ def bound(rule):
     _BIND.pop()
 
 
+@contextmanager
+def unshaded():
+    """Pieces built inside take no baked shadow. Thin layers laid on a body, such as a shirt front
+    under its lapels, would only pick up a saw-toothed stain from their neighbours."""
+    _UNSHADED.append(True)
+    yield
+    _UNSHADED.pop()
+
+
 def add(part, name, verts, faces, mat, bind=None):
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata([tuple(v) for v in verts], [], faces)
@@ -116,6 +128,7 @@ def add(part, name, verts, faces, mat, bind=None):
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
     obj["bind"] = bind or _BIND[-1]
+    obj["unshaded"] = _UNSHADED[-1]
     PIECES.setdefault(part, []).append(obj)
     return obj
 
@@ -294,27 +307,31 @@ class Form:
         obj = add(part, name, [B(p) for r in rings for p in r], rings_to_faces(len(rings), n, caps), mat)
         return outward(obj, None if caps else self.centre((ts[0] + ts[-1]) / 2))
 
-    def cap(self, part, name, mat, t, n=16, lift=0.0, up=True, inset_by=0.0):
-        """A flat lid across the form at `t`: the dark inside of a sleeve or a trouser leg."""
+    def cap(self, part, name, mat, t, n=16, lift=0.0, up=True):
+        """A flat lid across the form at `t`: the dark inside of a sleeve or a trouser leg.
+        `up` is the way it faces along the axis."""
         n = sides(n)
-        ring = [self.at(360.0 * k / n, t, lift - inset_by) for k in range(n)]
+        ring = [self.at(360.0 * k / n, t, lift) for k in range(n)]
         obj = add(part, name, [B(p) for p in ring], [tuple(range(n))], mat)
-        return outward(obj, self.centre(t) + Vector((0, -1 if up else 1, 0)) * (1 if self.axis == "y" else 0) + Vector((0, 0, -1 if up else 1)) * (0 if self.axis == "y" else 1))
+        along = Vector((0, 1, 0)) if self.axis == "y" else Vector((0, 0, 1))
+        return outward(obj, self.centre(t) - along * (0.1 if up else -0.1))
 
-    def shell(self, part, name, mat, a0, a1, t0, t1, thick=0.006, lift=0.0, na=8, nt=6, warp=None, sink=0.006):
+    def shell(self, part, name, mat, a0, a1, t0, t1, thick=0.006, lift=0.0, na=8, nt=6, warp=None, sink=0.006, exact=False):
         """A layer lying on the form between two angles and two heights: a plate, a cuff, a band.
         `thick` may be a function of (u, v), each 0 to 1 across the shell. `warp(u, v)` returns the
         (angle, height) of a point, for shells that are not rectangles."""
-        scale = (1.0, 0.6, 0.34)[lod()]
+        scale = 1.0 if exact else (1.0, 0.6, 0.34)[lod()]
         closed = abs(a1 - a0) >= 359.9
         na = max(4 if closed else 1, int(round(na * scale)))
         nt = max(1, int(round(nt * scale)))
         cols = na if closed else na + 1
+        # A coarse shell cuts corners, so far away it stands higher to stay clear of what it covers.
+        clear = (0.0, 0.0015, 0.007)[lod()]
 
         def point(i, j, top):
             u, v = i / na, j / nt
             a, t = warp(u, v) if warp else (a0 + (a1 - a0) * u, t0 + (t1 - t0) * v)
-            h = thick(u, v) if callable(thick) else thick
+            h = (thick(u, v) if callable(thick) else thick) + clear
             return self.at(a, t, lift + h if top else lift - sink)
 
         def idx(i, j):
@@ -338,22 +355,21 @@ class Form:
         obj = add(part, name, [B(p) for p in verts], faces, mat)
         return outward(obj, self.centre(t_mid))
 
-    def band(self, part, name, mat, t0, t1, thick=0.006, lift=0.0, n=16, nt=1, sink=0.006):
+    def band(self, part, name, mat, t0, t1, thick=0.006, lift=0.0, n=16, nt=1, sink=0.006, warp=None):
         """A shell all the way round: a belt, a cuff, an armband."""
-        return self.shell(part, name, mat, 0.0, 360.0, t0, t1, thick, lift, sides(n) / (1.0, 0.6, 0.34)[lod()], nt / (1.0, 0.6, 0.34)[lod()] if nt == 1 else nt, None, sink)
+        return self.shell(part, name, mat, 0.0, 360.0, t0, t1, thick, lift, sides(n), nt, warp, sink, True)
 
     def project(self, face, u, v, lift=0.0):
-        """A point of the surface seen from one side: (x, height) from the front or back, or
-        (depth, height) from the outer or inner side."""
+        """A point of the surface seen from one side, in the form's own coordinates: (x, height)
+        from the front or back, (depth, height) from the outer or inner side."""
         rx, rz, cx, cz = self.eval(v)
         if face in ("front", "back"):
             sq = self._squash(-1.0 if face == "front" else 1.0)
-            q = max(-1.0, min(1.0, (u * self.side - cx - self.origin.x * self.side) / max(rx, 1e-6)))
+            q = max(-1.0, min(1.0, (u * self.side - cx) / max(rx, 1e-6)))
             ang = math.degrees(math.acos(math.copysign(abs(q) ** (sq / 2), q)))
             a = 360.0 - ang if face == "front" else ang
         else:
-            depth = self.origin.z if self.axis == "y" else self.origin.y
-            q = max(-1.0, min(1.0, (u - cz - depth) / max(rz, 1e-6)))
+            q = max(-1.0, min(1.0, (u - cz) / max(rz, 1e-6)))
             sq = self._squash(q)
             ang = math.degrees(math.asin(math.copysign(abs(q) ** (sq / 2), q)))
             a = ang if face == "outer" else 180.0 - ang
@@ -572,6 +588,22 @@ def block(part, name, mat, centre, size, edge=0.004, turn=None):
     return bevel(obj, edge)
 
 
+def remap(part, fn, flip=False):
+    """Moves every point of a part that is still in pieces. `fn` takes and returns Godot metres;
+    `flip` is for a mapping that mirrors, which turns the faces inside out."""
+    for obj in PIECES[part]:
+        for v in obj.data.vertices:
+            q = fn(Vector((v.co.x, v.co.z, -v.co.y)))
+            v.co = (q.x, -q.z, q.y)
+        if flip:
+            bm = bmesh.new()
+            bm.from_mesh(obj.data)
+            bmesh.ops.reverse_faces(bm, faces=bm.faces)
+            bm.to_mesh(obj.data)
+            bm.free()
+        obj.data.update()
+
+
 # ---------------------------------------------------------------- binding to the skeleton
 
 GROUPS = {"torso": "trunk", "Torso": "trunk", "Pelvis": "trunk", "Head": "head"}
@@ -607,8 +639,8 @@ def weights(rule, p):
         chest = smooth(0.93, 1.13, p.y)
         # The seat and the hem of a jacket go with the legs, less so toward the middle.
         tag = "R" if p.x >= 0 else "L"
-        hip = JOINT[f"Thigh_{tag}"]
-        reach = (0.62 if rule == "skirt" else 0.5) * smooth(0.965, 0.84, p.y) * smooth(0.0, 0.075, abs(p.x))
+        # A hem rides up on the thigh in front and hangs behind it.
+        reach = (0.3 + 0.5 * smooth(0.06, -0.06, p.z)) * smooth(0.965, 0.84, p.y) * smooth(0.0, 0.075, abs(p.x))
         # The point of the shoulder lifts a little with the arm.
         sh = JOINT[f"UpperArm_{tag}"]
         d = math.hypot((abs(p.x) - abs(sh.x)), p.y - sh.y)
@@ -619,7 +651,6 @@ def weights(rule, p):
         out["Head"] = rest * head
         out["Torso"] = rest * (1 - head) * chest
         out["Pelvis"] = rest * (1 - head) * (1 - chest)
-        _ = hip
         return out
     raise KeyError(rule)
 
@@ -636,7 +667,7 @@ def bind_piece(obj):
                 groups[bone].add([v.index], w, "REPLACE")
 
 
-def bake_shade(objs, reach=0.08, rays=10, floor=0.5):
+def bake_shade(objs, reach=0.08, rays=10, floor=0.55):
     """Shadows where cloth folds and parts meet, kept on each vertex. Pieces of one limb shade each
     other but not the rest of the body, since the limbs will not stay where they were built."""
     verts, polys = [], []
@@ -656,11 +687,15 @@ def bake_shade(objs, reach=0.08, rays=10, floor=0.5):
     for obj in objs:
         mesh = obj.data
         attr = mesh.attributes.get("shade") or mesh.attributes.new("shade", "FLOAT", "POINT")
+        if obj.get("unshaded"):
+            for v in mesh.vertices:
+                attr.data[v.index].value = 1.0
+            continue
         for v in mesh.vertices:
             n = v.normal
             t = n.orthogonal().normalized()
             b = n.cross(t)
-            start = v.co + n * 0.0015
+            start = v.co + n * 0.005
             free = sum(1 for d in dirs if whole.ray_cast(start, t * d.x + b * d.y + n * d.z, reach)[0] is None)
             attr.data[v.index].value = floor + (1 - floor) * free / rays
 
@@ -701,9 +736,12 @@ def paint(obj, tone=None):
         for li in poly.loop_indices:
             v = mesh.vertices[mesh.loops[li].vertex_index]
             s = 1.0 if lit else shade_of[v.index]
+            mix = (s, s, s)
             if tone and not lit:
-                s *= tone(Vector((v.co.x, v.co.z, -v.co.y)), key)
-            attr.data[li].color = (*(max(0.0, min(1.0, c * s)) ** (1 / 2.2) for c in rgb), alpha)
+                # A tone is one number, or three to shift the colour as rust does.
+                worn = tone(Vector((v.co.x, v.co.z, -v.co.y)), key)
+                mix = tuple(s * w for w in worn) if isinstance(worn, tuple) else (s * worn,) * 3
+            attr.data[li].color = (*(max(0.0, min(1.0, c * m)) ** (1 / 2.2) for c, m in zip(rgb, mix)), alpha)
     mesh.color_attributes.active_color_index = 0
     mesh.color_attributes.render_color_index = 0
 
@@ -746,7 +784,12 @@ def char_material():
     gamma = nodes.new("ShaderNodeGamma")
     gamma.inputs[1].default_value = 2.2
     links.new(col.outputs["Color"], gamma.inputs[0])
-    links.new(gamma.outputs[0], bsdf.inputs["Base Color"])
+    tinted = nodes.new("ShaderNodeMix")
+    tinted.data_type = "RGBA"
+    tinted.blend_type = "MULTIPLY"
+    tinted.inputs[7].default_value = (*PREVIEW_TINT[0], 1)
+    links.new(gamma.outputs[0], tinted.inputs[6])
+    links.new(tinted.outputs[2], bsdf.inputs["Base Color"])
 
     def ramp(values):
         node = nodes.new("ShaderNodeValToRGB")
@@ -762,10 +805,11 @@ def char_material():
         links.new(col.outputs["Alpha"], node.inputs[0])
         return node
 
+    links.new(ramp([1.0 if k in ("skin", "tint") else 0.0 for k in KINDS]).outputs[0], tinted.inputs[0])
     links.new(ramp([KIND_LOOK[k][0] for k in KINDS]).outputs[0], bsdf.inputs["Roughness"])
     links.new(ramp([KIND_LOOK[k][1] for k in KINDS]).outputs[0], bsdf.inputs["Metallic"])
     links.new(ramp([4.0 if k in ("glow", "lamp") else 0.0 for k in KINDS]).outputs[0], bsdf.inputs["Emission Strength"])
-    links.new(gamma.outputs[0], bsdf.inputs["Emission Color"])
+    links.new(tinted.outputs[2], bsdf.inputs["Emission Color"])
     return m
 
 
