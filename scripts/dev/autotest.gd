@@ -30,6 +30,7 @@ extends Node
 ##   grenades headless: the reload rule, class counts, smoke and fire, see grenade_test.gd.
 ##   grenade-shots windowed: the throw, frame by frame, and each kind going off.
 ##   squad-net headless pair: the same over a real connection, see squad_network.gd.
+##   settings: the way back out of the settings in both menus, see settings_test.gd.
 ##   squad-shots windowed: squad screens and the commander's tools, see squad_shots.gd.
 
 ## Fixed stops of the perf test, as [name, feet position, starting yaw, pitch]. The view
@@ -137,6 +138,7 @@ func _ready() -> void:
 		"browser-net": add_child(load("res://scripts/dev/browser_network.gd").new())
 		"respawn": add_child(load("res://scripts/dev/respawn_test.gd").new())
 		"fixes": add_child(load("res://scripts/dev/fixes_test.gd").new())
+		"settings": add_child(load("res://scripts/dev/settings_test.gd").new())
 		"shield": add_child(load("res://scripts/dev/shield_test.gd").new())
 		"fixes-shots": add_child(load("res://scripts/dev/fixes_shots.gd").new())
 		"perf-weather": add_child(load("res://scripts/dev/weather_perf.gd").new())

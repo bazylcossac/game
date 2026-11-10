@@ -51,6 +51,8 @@ func _build() -> void:
 			_respawn_button = b
 
 	var s := SettingsPanel.new()
+	s.fit_screen = true
+	s.fit_reserve = 34 * 2 + 48
 	s.closed.connect(_hide_settings)
 	s.visible = false
 	_settings = s
