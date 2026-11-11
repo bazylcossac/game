@@ -13,7 +13,7 @@ potwierdza ten sam SHA; narzędzia wdrożenia pochodzą z rewizji workflow, a ź
 z osobnego checkoutu wybranej wersji. Nie wykonuje instalatorów z wybranego wydania
 z uprawnieniami root. Klienci Windows i macOS nie są ponownie eksportowani.
 
-Źródła serwera są pakowane do `MieczDawida-server-linux.tar.gz`, razem z manifestem
+Źródła serwera są pakowane do `CorpWars-server-linux.tar.gz`, razem z manifestem
 wersji; SHA256 i manifest są także dodawane do wydania GitHub. Import na VPS działa
 jako użytkownik gry, przed zatrzymaniem obecnej instancji. Godot musi mieć wersję 4.7.2.
 

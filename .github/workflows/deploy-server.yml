@@ -104,7 +104,7 @@ jobs:
         run: |
           dir="/root/miecz-deploy/$DEPLOYMENT_ID"
           ssh vps "install -d -m 700 '$dir'"
-          scp -q dist/MieczDawida-server-linux.tar.gz automation/deploy/release_install.py automation/deploy/package_release.py automation/deploy/health_probe.gd "vps:$dir/"
+          scp -q dist/CorpWars-server-linux.tar.gz automation/deploy/release_install.py automation/deploy/package_release.py automation/deploy/health_probe.gd "vps:$dir/"
 
       - name: Install durably, restart, verify and roll back if needed
         run: |
@@ -113,7 +113,7 @@ jobs:
           echo 'REMOTE_MAY_RUN=true' >> "$GITHUB_ENV"
           # Re-running the same workflow reads the same result; it never repeats the switch.
           if ! ssh vps "test -f '$dir/started.json' -o -f '$dir/result.json'"; then
-            ssh vps "systemd-run --unit='giera-deploy-$DEPLOYMENT_ID' --collect --no-block /usr/bin/python3 '$dir/release_install.py' --package '$dir/MieczDawida-server-linux.tar.gz' --sha256 '$digest' --tag '$RELEASE_TAG' --commit '$COMMIT_SHA' --deployment-id '$DEPLOYMENT_ID'"
+            ssh vps "systemd-run --unit='giera-deploy-$DEPLOYMENT_ID' --collect --no-block /usr/bin/python3 '$dir/release_install.py' --package '$dir/CorpWars-server-linux.tar.gz' --sha256 '$digest' --tag '$RELEASE_TAG' --commit '$COMMIT_SHA' --deployment-id '$DEPLOYMENT_ID'"
           fi
           for attempt in $(seq 1 240); do
             if ssh vps "test -f '$dir/result.json'"; then

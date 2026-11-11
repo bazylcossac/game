@@ -27,7 +27,7 @@ class ReleaseTests(unittest.TestCase):
         (self.source / "project.godot").write_text("config_version=5")
         self.out = self.root / "out"
         package(self.source, self.out, TAG, SHA)
-        self.archive = self.out / "MieczDawida-server-linux.tar.gz"
+        self.archive = self.out / "CorpWars-server-linux.tar.gz"
         self.digest = hashlib.sha256(self.archive.read_bytes()).hexdigest()
 
     def tearDown(self):

@@ -44,7 +44,7 @@ def package(source, output, tag, commit):
             if item.is_file():
                 files.append(item)
     output.mkdir(parents=True, exist_ok=True)
-    archive = output / "MieczDawida-server-linux.tar.gz"
+    archive = output / "CorpWars-server-linux.tar.gz"
     with archive.open("wb") as raw, gzip.GzipFile(fileobj=raw, mode="wb", filename="", mtime=0) as zipped:
         with tarfile.open(fileobj=zipped, mode="w") as tar:
             for item in files:

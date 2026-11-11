@@ -5,16 +5,16 @@ korporacje, a ludzie nie są już potrzebni do pracy. Rebelia, ostatni ludzie, w
 z Korpo, armią robotów w czarnych garniturach. Broń laserowa, miecze energetyczne,
 pięć trybów gry na siedmiu mapach, klasy, boty i gra przez sieć.
 
-(Do wersji 0.12.0 gra nazywała się Miecz Dawida. Pliki gry i serwera zachowały stare nazwy.)
+(Starsze wydania zawierają pliki pod nazwą Miecz Dawida. Nowe paczki są publikowane jako CorpWars; wcześniejsze wydania nadal są obsługiwane.)
 
 ## Pobieranie
 
-Gotowe wersje są na stronie **Releases** tego repozytorium. Wydanie `najnowsza` to zawsze ostatni build z gałęzi `main`.
+Gotowe wersje są na stronie **Releases** tego repozytorium. Wybierz wersjonowane wydanie; `najnowsza` jest starszym, zmiennym kanałem testowym.
 
-- **Windows:** pobierz `MieczDawida-windows.exe` i uruchom. Przy pierwszym starcie Windows może ostrzec o nieznanym wydawcy: wybierz **Więcej informacji → Uruchom mimo to**.
-- **macOS:** pobierz `MieczDawida-macos.zip`, rozpakuj i przenieś aplikację do Programów. Gra nie ma podpisu Apple, więc za pierwszym razem kliknij ją prawym przyciskiem i wybierz **Otwórz**. Jeśli system dalej blokuje start, uruchom w Terminalu `xattr -cr "/Applications/Miecz Dawida.app"`.
+- **Windows:** pobierz `CorpWars-windows.exe` (w starszych wydaniach `MieczDawida-windows.exe`) i uruchom. Przy pierwszym starcie Windows może ostrzec o nieznanym wydawcy: wybierz **Więcej informacji → Uruchom mimo to**.
+- **macOS:** pobierz `CorpWars-macos.zip` (w starszych wydaniach `MieczDawida-macos.zip`), rozpakuj i przenieś aplikację do Programów. Gra nie ma podpisu Apple, więc za pierwszym razem kliknij ją prawym przyciskiem i wybierz **Otwórz**. Jeśli system dalej blokuje start, uruchom w Terminalu `xattr -cr "/Applications/Corp Wars.app"`.
 
-Buildy powstają w `.github/workflows/build.yml`. Tag w stylu `v0.10.0` tworzy osobne wydanie.
+Buildy powstają w `.github/workflows/build.yml` na żądanie zadania z zaznaczoną opcją „Zbuduj wersję”. Sam push lub tag nie uruchamia eksportów klientów.
 
 ## Uruchamianie
 

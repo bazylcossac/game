@@ -1,5 +1,5 @@
 #!/bin/bash
-# Instaluje serwer Miecz Dawida na VPS z Debianem lub Ubuntu. Uruchom jako root, w folderze
+# Instaluje serwer Corp Wars na VPS z Debianem lub Ubuntu. Uruchom jako root, w folderze
 # z paczka: sudo bash install.sh
 # Ponowne uruchomienie aktualizuje gre. Twoje ustawienia w /etc/miecz-dawida.env zostaja.
 set -euo pipefail

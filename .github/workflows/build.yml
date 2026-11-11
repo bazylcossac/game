@@ -104,25 +104,25 @@ jobs:
       - name: Zbuduj wersję na Windows
         run: |
           mkdir -p export/windows
-          ~/godot/godot --headless --path . --export-release "Windows" export/windows/MieczDawida.exe
-          test -s export/windows/MieczDawida.exe
+          ~/godot/godot --headless --path . --export-release "Windows" export/windows/CorpWars.exe
+          test -s export/windows/CorpWars.exe
 
       - name: Zbuduj wersję na macOS
         run: |
           mkdir -p export/macos
-          ~/godot/godot --headless --path . --export-release "macOS" export/macos/MieczDawida.zip
-          test -s export/macos/MieczDawida.zip
+          ~/godot/godot --headless --path . --export-release "macOS" export/macos/CorpWars.zip
+          test -s export/macos/CorpWars.zip
 
       - name: Przygotuj pliki
         run: |
           mkdir -p dist
-          mv export/windows/MieczDawida.exe dist/MieczDawida-windows.exe
-          mv export/macos/MieczDawida.zip dist/MieczDawida-macos.zip
+          mv export/windows/CorpWars.exe dist/CorpWars-windows.exe
+          mv export/macos/CorpWars.zip dist/CorpWars-macos.zip
           ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: MieczDawida
+          name: CorpWars
           path: dist/*
           compression-level: 0
 
