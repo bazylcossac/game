@@ -1,0 +1,131 @@
+name: Wgraj wybrane wydanie na VPS
+run-name: VPS ${{ inputs.release_tag }} / ${{ inputs.deployment_id }}
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Versioned GitHub release tag
+        required: true
+        type: string
+      commit_sha:
+        description: Exact commit resolved by the panel
+        required: true
+        type: string
+      deployment_id:
+        description: Panel deployment UUID
+        required: true
+        type: string
+      panel_url:
+        description: Panel origin (validated, never an arbitrary callback)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+concurrency:
+  group: giera-vps-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      COMMIT_SHA: ${{ inputs.commit_sha }}
+      DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+      PANEL_URL: ${{ inputs.panel_url }}
+      CI_TOKEN: ${{ secrets.CI_TOKEN }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      RESULT_FILE: ${{ github.workspace }}/deployment-result.json
+      REMOTE_MAY_RUN: 'false'
+    steps:
+      - name: Validate before touching the VPS
+        id: validate
+        run: |
+          python3 - <<'PY'
+          import os, re
+          e = os.environ
+          assert re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,119}', e['RELEASE_TAG']) and e['RELEASE_TAG'] != 'najnowsza'
+          assert re.fullmatch(r'[a-f0-9]{40}', e['COMMIT_SHA'])
+          assert re.fullmatch(r'[a-f0-9-]{36}', e['DEPLOYMENT_ID'])
+          assert e['PANEL_URL'] == 'https://giera-panel.vercel.app' and len(e['CI_TOKEN']) >= 32
+          assert re.fullmatch(r'[A-Za-z0-9.-]+', e['VPS_HOST'])
+          PY
+
+      - name: Trusted deployment tools from workflow revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: automation
+          persist-credentials: false
+
+      - name: Report start (must match an existing owner request)
+        run: node automation/deploy/report_deployment.mjs running
+
+      - name: Selected game revision (data only)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_sha }}
+          path: source
+          persist-credentials: false
+
+      - name: Verify immutable release identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git -C source rev-parse HEAD)" = "$COMMIT_SHA"
+          actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq .sha)
+          test "$actual" = "$COMMIT_SHA"
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq 'if .isDraft then error("Draft release") else true end'
+
+      - name: Prepare Linux server sources (no client export)
+        run: python3 automation/deploy/package_release.py --source source --output dist --tag "$RELEASE_TAG" --commit "$COMMIT_SHA"
+
+      - name: Attach reusable server package to this release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" dist/* --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Configure verified SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          test -n "$VPS_SSH_KEY" && test -n "$VPS_KNOWN_HOSTS"
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host vps\n  HostName %s\n  User root\n  IdentityFile ~/.ssh/deploy\n  StrictHostKeyChecking yes\n  ServerAliveInterval 20\n  ConnectTimeout 15\n' "$VPS_HOST" > ~/.ssh/config
+
+      - name: Upload without stopping the game
+        run: |
+          dir="/root/miecz-deploy/$DEPLOYMENT_ID"
+          ssh vps "install -d -m 700 '$dir'"
+          scp -q dist/MieczDawida-server-linux.tar.gz automation/deploy/release_install.py automation/deploy/package_release.py automation/deploy/health_probe.gd "vps:$dir/"
+
+      - name: Install durably, restart, verify and roll back if needed
+        run: |
+          dir="/root/miecz-deploy/$DEPLOYMENT_ID"
+          digest=$(python3 -c 'import json; print(json.load(open("dist/server-release.json"))["sha256"])')
+          echo 'REMOTE_MAY_RUN=true' >> "$GITHUB_ENV"
+          # Re-running the same workflow reads the same result; it never repeats the switch.
+          if ! ssh vps "test -f '$dir/started.json' -o -f '$dir/result.json'"; then
+            ssh vps "systemd-run --unit='giera-deploy-$DEPLOYMENT_ID' --collect --no-block /usr/bin/python3 '$dir/release_install.py' --package '$dir/MieczDawida-server-linux.tar.gz' --sha256 '$digest' --tag '$RELEASE_TAG' --commit '$COMMIT_SHA' --deployment-id '$DEPLOYMENT_ID'"
+          fi
+          for attempt in $(seq 1 240); do
+            if ssh vps "test -f '$dir/result.json'"; then
+              scp -q "vps:$dir/result.json" "$RESULT_FILE"
+              cat "$RESULT_FILE"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'No confirmed result. Inspect the transient service and journal on VPS.' >&2
+          exit 1
+
+      - name: Report confirmed result (unknown on lost acknowledgement)
+        if: always() && steps.validate.outcome == 'success'
+        run: node automation/deploy/report_deployment.mjs result

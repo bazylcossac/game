@@ -239,6 +239,12 @@ silnik przełącza je na tańszy model. Pliki źródłowe nie są importowane po
 
 ## Serwer na VPS
 
+Aktualizacja istniejącego VPS: panel → **Wersje i wdrożenia** → **Synchronizuj GitHub**
+→ **Wdróż** przy wybranym wydaniu. Można wybrać także wcześniejszą wersję. Sam push
+na main nie aktualizuje serwera. Mechanizm wersjonowanych katalogów, restartu,
+sprawdzania gry i cofania błędu opisano w [deploy/README.md](deploy/README.md).
+Poniższy instalator służy do pierwszej instalacji, przed zarządzaniem wersjami z panelu.
+
 Serwer to ten sam projekt uruchomiony bez grafiki. Trafienia, zdrowie, flagi, monety i czołgi
 liczy serwer. Grają na nim sami gracze, bez botów. Dołącza się w Gra sieciowa: lista serwerów
 pokazuje tryb, mapę, graczy i ping, a drużynę wybiera się po dołączeniu. Listę trzyma `C.SERVERS`.
