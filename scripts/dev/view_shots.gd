@@ -1,6 +1,6 @@
 extends Node
 ## `--test=view-shots --out=<dir>`, windowed: guns as the player holds them, at the hip and aimed,
-## for both sides. `--only=word` keeps the shots whose name contains it, `--map=id` picks the map.
+## for both sides, and sprinting (`--only=bieg`). `--only=word` keeps the shots whose name contains it, `--map=id` picks the map.
 
 const GUNS := [
 	[0, 0, "mech", {}], [0, 0, "karabinek", {}], [1, 2, "dzialko", {}], [0, 2, "karabin", {}], [1, 1, "promieniowy", {}], [0, 0, "wyrzutnia", {"ordnance": "rockets"}], [1, 0, "wyrzutnia_imperium", {"ordnance": "rockets"}], [1, 0, "szturmowy", {}], [0, 5, "minigun", {}], [1, 5, "droid_inzynier", {}],
@@ -8,6 +8,7 @@ const GUNS := [
 	[0, 5, "tarcza", {"slot": 3}], [0, 0, "wychylenie", {"lean": 1}],
 	[0, 0, "kolimator", {"parts_p": ["reddot"]}], [0, 0, "holo", {"parts_p": ["holo"]}], [1, 0, "kolimator_imperium", {"parts_p": ["reddot"]}],
 	[0, 0, "pistolet", {"slot": 1}], [1, 0, "pistolet_imperium", {"slot": 1}],
+	[0, 0, "bieg_karabinek", {"run": 1}], [1, 5, "bieg_droid_inzynier", {"run": 1}], [0, 1, "bieg_katana", {"slot": 2, "run": 1}], [0, 0, "bieg_miecz_swietlny", {"slot": 2, "run": 1}],
 ]
 
 var out_dir := ""
@@ -71,6 +72,17 @@ func _gun(team: int, class_id: int, label: String, kit: Dictionary) -> void:
 		await _wait(0.5)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	await _shot("%s_biodro" % label)
+	if kit.has("run"):
+		# Sprinting forward: shots through one stride, so the swing shows from frame to frame.
+		Input.action_press("move_forward")
+		Input.action_press("sprint")
+		await _wait(0.7)
+		for i in 4:
+			await _shot("%s_%d" % [label, i])
+			await _wait(0.11)
+		Input.action_release("sprint")
+		Input.action_release("move_forward")
+		await _wait(0.6)
 	Input.action_press("aim")
 	await _wait(0.7)
 	await _shot("%s_cel" % label)

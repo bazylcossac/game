@@ -138,6 +138,7 @@ func _ready() -> void:
 		"respawn": add_child(load("res://scripts/dev/respawn_test.gd").new())
 		"fixes": add_child(load("res://scripts/dev/fixes_test.gd").new())
 		"shield": add_child(load("res://scripts/dev/shield_test.gd").new())
+		"run-anim": add_child(load("res://scripts/dev/run_anim_test.gd").new())
 		"fixes-shots": add_child(load("res://scripts/dev/fixes_shots.gd").new())
 		"perf-weather": add_child(load("res://scripts/dev/weather_perf.gd").new())
 		"browser-shots": add_child(load("res://scripts/dev/browser_shots.gd").new())

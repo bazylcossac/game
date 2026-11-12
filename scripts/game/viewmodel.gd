@@ -55,6 +55,18 @@ const ROCKET_SWING_POS := Vector3(0.06, 0.0, -0.12)
 const ROCKET_SWING_ROT := Vector3(-0.16, -0.95, 0.08)
 const BLADE_REST_POS := Vector3(0.3, -0.3, -0.5)
 const BLADE_REST_ROT := Vector3(-1.02, 0.1, -0.42)
+## Sprinting with a blade: the hilt comes in close to the chest and the blade lies at a slant,
+## tipped back towards the shoulder and out to the right, so it is carried rather than held out
+## in front. On screen the hand stays at the bottom edge and the blade runs from it up to the
+## right, clear of the crosshair. Both are added to the rest pose.
+const BLADE_RUN_POS := Vector3(-0.12, 0.12, 0.16)
+const BLADE_RUN_ROT := Vector3(0.5, 0.5, -0.8)
+## Sprinting with a gun: lowered, canted and turned in across the body. Added to the hip pose.
+const GUN_RUN_POS := Vector3(0.02, -0.065, 0.08)
+const GUN_RUN_ROT := Vector3(-0.22, 0.75, 0.34)
+## How far a sprint swings the weapon each stride: side to side, up and down, rolled.
+const RUN_SWAY := Vector2(0.034, 0.036)
+const RUN_ROLL := 0.17
 ## Blade poses in view space: [time, position, rotation]. The hilt travels; the blade
 ## points along +Y of the rotation, so negative Z rotation leans it to the right.
 const SWINGS := [
@@ -134,6 +146,9 @@ var _flash_t := 0.0
 var _throw := -1.0
 var _lag_y := 0.0
 var _left_home := Vector3.ZERO
+## This frame's sprinting stride swing, from `_run_stride`.
+var _run_pos := Vector3.ZERO
+var _run_rot := Vector3.ZERO
 
 
 func setup(new_team: int) -> void:
@@ -500,10 +515,13 @@ func animate(delta: float, aiming: bool, blocking: bool, sprinting: bool, speed:
 	pos.z += _kick * 0.05
 	rot.x += _kick_rot * 0.06
 
-	if _sprint > 0.0 and not C.is_blade(weapon_id):
-		pos += Vector3(0.02, -0.06, 0.08) * _sprint
-		rot += Vector3(-0.2, 0.75, 0.32) * _sprint
-		pos.x += sin(_bob_phase) * 0.016 * _sprint
+	_run_pos = Vector3.ZERO
+	_run_rot = Vector3.ZERO
+	if _sprint > 0.0:
+		_run_stride(moving)
+		if not C.is_blade(weapon_id):
+			pos += GUN_RUN_POS * _sprint + _run_pos
+			rot += GUN_RUN_ROT * _sprint + _run_rot
 
 	if _reload > 0.0:
 		_reload -= delta
@@ -548,6 +566,27 @@ func animate(delta: float, aiming: bool, blocking: bool, sprinting: bool, speed:
 	if _sword_forearm:
 		_place_forearm(_sword_forearm, pos, ELBOW_R + Vector3(pos.x * 0.4, 0.0, 0.0))
 		_update_trail(delta)
+
+
+## The swing of a sprinting stride, in `_run_pos` and `_run_rot`. One stride (two footfalls) is a
+## full turn of `step`; a foot lands at 0 and PI. The weapon follows the body a little late, so it
+## swings like something carried rather than something bolted to the camera.
+func _run_stride(moving: float) -> void:
+	var run := _sprint * moving
+	var step := _bob_phase * 0.5
+	var lag := step - 0.55
+	# Up between footfalls, and a short hard drop as each foot lands.
+	var lift := absf(sin(step))
+	var land := pow(1.0 - lift, 4.0)
+	var side := sin(lag)
+	if C.is_blade(weapon_id):
+		# The sword arm pumps forward and back with the stride, the hilt bobbing as it goes.
+		_run_pos = Vector3(side * 0.022, (lift - 0.5) * 0.034 - land * 0.012, -sin(step) * 0.05) * run
+		_run_rot = Vector3(sin(step) * 0.16 - land * 0.05, side * 0.06, side * 0.1) * run
+		return
+	# A figure of eight: across once per stride, up and down once per footfall.
+	_run_pos = Vector3(side * RUN_SWAY.x, (lift - 0.5) * RUN_SWAY.y - land * 0.014, cos(step * 2.0) * 0.008) * run
+	_run_rot = Vector3((lift - 0.5) * 0.09 - land * 0.05, sin(lag - 0.35) * 0.07, side * RUN_ROLL) * run
 
 
 func _ease(t: float) -> float:
@@ -655,6 +694,11 @@ func _sword_pose(pos: Vector3, rot: Vector3, delta: float) -> Array:
 					p = from_pos.lerp(b[1], k) + extra_pos
 					r = from_rot.lerp(b[2], k) + rot
 					break
+	# Pulled in to the body while sprinting. A cut or a block ends the sprint, and `_sprint`
+	# runs down in a sixth of a second, so the blade comes out of the carry smoothly.
+	var carry := _sprint * (1.0 - _block)
+	p += BLADE_RUN_POS * carry + _run_pos
+	r += BLADE_RUN_ROT * carry + _run_rot
 	return [p, r]
 
 

@@ -193,6 +193,10 @@ static func particle(tex_name: String, additive: bool, two_sided := false) -> St
 	return m
 
 
+## Field of view the first-person weapon and hands are drawn with, whatever the camera's.
+const VIEWMODEL_FOV := 62.0
+
+
 ## Copy of a material for first-person use: its own FOV, and clipped so it never
 ## pokes through nearby walls.
 static func viewmodel(src: StandardMaterial3D) -> StandardMaterial3D:
@@ -201,7 +205,7 @@ static func viewmodel(src: StandardMaterial3D) -> StandardMaterial3D:
 		return _flat[key]
 	var m := src.duplicate() as StandardMaterial3D
 	m.use_fov_override = true
-	m.fov_override = 62.0
+	m.fov_override = VIEWMODEL_FOV
 	m.use_z_clip_scale = true
 	m.z_clip_scale = 0.12
 	_flat[key] = m

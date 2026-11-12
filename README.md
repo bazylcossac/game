@@ -328,6 +328,8 @@ python tools/test_arenas_network.py              lokalny serwer i klient obu now
 godot --headless -- --test=fixes                  wsiadanie, amunicja, puste czołgi, strefy, stamina, F, panel admina
 godot -- --test=perf-weather --windowed --map=neonowa_dzielnica  koszt klatki z pogodą i bez
 godot --headless -- --test=respawn                odrodzenie z menu, także w pojazdach
+godot --headless -- --test=run-anim               sprint: kołysanie broni, katana przyciągnięta do ciała
+godot -- --test=view-shots --only=bieg --out=KATALOG  zrzuty sprintu z karabinkiem, działkiem i mieczami
 godot --headless -- --test=browser-net --port=17870  lista, drużyna, ping i odrodzenie; najpierw uruchom --server --port=17870 --mode=podboj --map=stare_miasto --name=Testowy
 godot -- --test=browser-shots --windowed --port=17870 --out=KATALOG  zrzuty listy, wyboru drużyny, tabeli i menu
 ```
