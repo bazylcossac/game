@@ -118,6 +118,7 @@ pub fn fetch(client: &Client, etag: Option<&str>) -> Result<Catalog> {
             return Err("Katalog jest zbyt duży. Zaktualizuj launcher.".into());
         }
     }
+    drop_channel_copy(&mut releases);
     releases.sort_by(|a, b| {
         a.testing.cmp(&b.testing).then_with(|| {
             let a_version = Version::parse(&a.version).ok();
@@ -134,11 +135,29 @@ pub fn fetch(client: &Client, etag: Option<&str>) -> Result<Catalog> {
     })
 }
 
+/// The test channel "najnowsza" carries a copy of the newest panel build. When that build is in the
+/// list on its own, the copy would only show it twice, so it goes.
+fn drop_channel_copy(releases: &mut Vec<Release>) {
+    let builds: Vec<String> = releases
+        .iter()
+        .filter(|r| r.tag.starts_with(PANEL_PREFIX))
+        .map(|r| r.sha256.clone())
+        .collect();
+    releases.retain(|r| r.tag != CHANNEL || !builds.contains(&r.sha256));
+}
+
+/// The rolling test channel, and the tag prefix of every build ordered from the task panel.
+const CHANNEL: &str = "najnowsza";
+const PANEL_PREFIX: &str = "panel-";
+
 fn convert(raw: GitHubRelease) -> Option<Release> {
     if raw.draft {
         return None;
     }
-    let testing = raw.tag_name == "najnowsza";
+    // Test builds: the rolling channel and each build ordered from the panel, which GitHub keeps
+    // as prereleases. Numbered prereleases (v1.2.0-beta) stay out.
+    let testing =
+        raw.tag_name == CHANNEL || (raw.prerelease && raw.tag_name.starts_with(PANEL_PREFIX));
     let version = raw
         .tag_name
         .strip_prefix('v')
@@ -180,6 +199,7 @@ fn convert(raw: GitHubRelease) -> Option<Release> {
 pub fn target<'a>(selection: &str, releases: &'a [Release]) -> Option<&'a Release> {
     match selection {
         "stable" => releases.iter().find(|r| !r.testing),
+        // Sorted newest first, so this is the latest test build.
         "testing" => releases.iter().find(|r| r.testing),
         value => value
             .strip_prefix("pin:")
@@ -235,6 +255,29 @@ mod tests {
         let mut test = raw("najnowsza", "MieczDawida-windows.exe", Some(&digest));
         test.prerelease = true;
         assert!(convert(test).unwrap().testing);
+    }
+    #[test]
+    fn panel_builds_are_test_builds_and_the_channel_copy_goes() {
+        let digest = format!("sha256:{}", "d".repeat(64));
+        let mut build = raw("panel-3d054663-d88b-49d5-a849-2a4ff3a17504", "CorpWars-windows.exe", Some(&digest));
+        build.prerelease = true;
+        build.id = 7;
+        let build = convert(build).unwrap();
+        assert!(build.testing && build.version == "test");
+        let mut not_pre = raw("panel-x", "CorpWars-windows.exe", Some(&digest));
+        not_pre.prerelease = false;
+        assert!(convert(not_pre).is_none());
+        let mut channel = raw("najnowsza", "CorpWars-windows.exe", Some(&digest));
+        channel.prerelease = true;
+        let channel = convert(channel).unwrap();
+        let mut list = vec![channel.clone(), build.clone()];
+        drop_channel_copy(&mut list);
+        assert_eq!(list, vec![build.clone()]);
+        let mut older = channel;
+        older.sha256 = "e".repeat(64);
+        let mut list = vec![older.clone(), build];
+        drop_channel_copy(&mut list);
+        assert_eq!(list.len(), 2, "a channel holding another build stays");
     }
     #[test]
     fn pin_matches_identity_instead_of_tag() {

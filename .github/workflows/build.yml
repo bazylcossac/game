@@ -126,12 +126,38 @@ jobs:
           path: dist/*
           compression-level: 0
 
+      # Every panel build is its own test release, which launcher 0.2.0+ lists for picking, and
+      # it also becomes the "najnowsza" test channel that every launcher follows.
       - name: Opublikuj wersje zadania
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "panel-${BUILD_ID}" dist/* --prerelease --title "Build ${COMMIT_SHA:0:7}" --target "$COMMIT_SHA" --notes "Build na zadanie z panelu. Task: ${TASK_ID}. Commit: ${COMMIT_SHA}."
+          version=$(sed -n 's/^const VERSION := "\(.*\)"/\1/p' scripts/core/c.gd)
+          subject=$(git log -1 --format=%s | cut -c1-70)
+          title="Test ${version} · ${COMMIT_SHA:0:7} · ${subject}"
+          notes="Build testowy z panelu. Task: ${TASK_ID}. Commit: ${COMMIT_SHA}."
+          gh release create "panel-${BUILD_ID}" dist/* --prerelease --title "$title" --target "$COMMIT_SHA" --notes "$notes"
           gh release view "panel-${BUILD_ID}" --json url,assets > "$RUNNER_TEMP/panel-release.json"
+
+      - name: Przestaw kanał testowy najnowsza
+        # The build itself is already published above; a hiccup here must not report it as failed.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's/^const VERSION := "\(.*\)"/\1/p' scripts/core/c.gd)
+          subject=$(git log -1 --format=%s | cut -c1-70)
+          if ! gh release view najnowsza >/dev/null 2>&1; then
+            gh release create najnowsza --prerelease --target "$COMMIT_SHA" --title "Najnowszy build" --notes "Kanał testowy launchera."
+          fi
+          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/najnowsza" -f sha="$COMMIT_SHA" -F force=true >/dev/null
+          gh release upload najnowsza dist/* --clobber
+          # Old package names would shadow the new ones in launchers that take the first match.
+          for old in MieczDawida-windows.exe MieczDawida-macos.zip; do
+            gh release delete-asset najnowsza "$old" -y 2>/dev/null || true
+          done
+          gh release edit najnowsza --prerelease --title "Najnowszy build · ${version} · ${COMMIT_SHA:0:7} · ${subject}" \
+            --notes "Kanał testowy launchera: zawsze ostatni build zlecony z panelu. Task: ${TASK_ID}. Commit: ${COMMIT_SHA}."
 
       - name: Zglos wynik do panelu
         if: always() && steps.validate.outcome == 'success'

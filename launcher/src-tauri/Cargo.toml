@@ -1,6 +1,6 @@
 [package]
 name = "corp-wars-launcher"
-version = "0.1.0"
+version = "0.2.0"
 description = "Corp Wars game launcher and updater"
 authors = ["Corp Wars"]
 edition = "2021"
