@@ -14,7 +14,7 @@ Gotowe wersje są na stronie **Releases** tego repozytorium. Wybierz wersjonowan
 - **Windows:** pobierz `CorpWars-windows.exe` (w starszych wydaniach `MieczDawida-windows.exe`) i uruchom. Przy pierwszym starcie Windows może ostrzec o nieznanym wydawcy: wybierz **Więcej informacji → Uruchom mimo to**.
 - **macOS:** pobierz `CorpWars-macos.zip` (w starszych wydaniach `MieczDawida-macos.zip`), rozpakuj i przenieś aplikację do Programów. Gra nie ma podpisu Apple, więc za pierwszym razem kliknij ją prawym przyciskiem i wybierz **Otwórz**. Jeśli system dalej blokuje start, uruchom w Terminalu `xattr -cr "/Applications/Corp Wars.app"`.
 
-Buildy powstają w `.github/workflows/build.yml` na żądanie zadania z zaznaczoną opcją „Zbuduj wersję”. Sam push lub tag nie uruchamia eksportów klientów.
+Buildy powstają w `.github/workflows/build.yml` na żądanie zadania z zaznaczoną opcją „Zbuduj wersję”. Sam push lub tag nie uruchamia eksportów klientów. Każdy taki build trafia też do launchera: jako osobny build testowy do wyboru (launcher 0.2.0+) i jako kanał „najnowsza”.
 
 ## Uruchamianie
 

@@ -6,7 +6,10 @@
   let model = null, page = 'play', checking = false, requestInFlight = false;
   let autoPending = false, suppressAuto = false, pendingChoice = null, activeSelection = null;
   let listSignature = '', pollTimer;
-  const name = r => !r ? 'Brak instalacji' : r.testing ? 'Test · ' + r.publishedAt.slice(0, 10) : r.version;
+  const stamp = r => r.publishedAt.slice(0, 16).replace('T', ' ');
+  const name = r => !r ? 'Brak instalacji' : r.testing ? 'Test · ' + stamp(r) : r.version;
+  // A panel build's title reads "Test 0.14.0 · abc1234 · what changed"; the channel's starts with "Najnowszy build".
+  const about = r => (r.title || '').replace(/^(Test|Najnowszy build)\s*·\s*/, '') || 'Build testowy';
   const mib = n => (n / 1048576).toLocaleString('pl-PL', { maximumFractionDigits: 1 }) + ' MiB';
   const date = n => n ? new Date(n * 1000).toLocaleString('pl-PL') : 'Jeszcze nie sprawdzono';
   const target = (selection = model?.state.preferences.selection) => {
@@ -90,7 +93,7 @@
     $('news-date').textContent = latest?.publishedAt.slice(0, 10) || '';
     $('news-notes').textContent = latest?.notes || 'Opisy i pliki gry są publikowane w GitHub Releases.';
     $('stable-label').textContent = latest ? name(latest) + ' · ' + mib(latest.size) + '. Pobieraj kolejne stabilne wydania.' : 'Brak gotowego wydania Windows x64';
-    $('testing-label').textContent = testing ? testing.publishedAt.slice(0, 10) + ' · ' + mib(testing.size) + '. Śledź bieżący build „najnowsza”.' : 'Brak gotowego buildu testowego';
+    $('testing-label').textContent = testing ? stamp(testing) + ' · ' + about(testing) + '. Każdy nowy build z panelu instaluje się sam.' : 'Brak gotowego buildu testowego';
     document.querySelectorAll('[name="channel"]').forEach(n => { n.checked = n.value === pref.selection; n.disabled = busy || !target(n.value); });
     renderReleases();
     const phases = { idle: 'Gotowa', download: 'Pobieranie', verify: 'Weryfikacja', waiting: 'Oczekiwanie', install: 'Instalowanie', done: 'Gotowe', error: 'Błąd', cancelled: 'Anulowano' };
@@ -118,18 +121,24 @@
   function renderReleases() {
     const signature = JSON.stringify([model.state.releases.map(r => r.key), model.state.installed?.key, model.state.preferences.selection, model.busy]);
     if (signature === listSignature) return; listSignature = signature;
-    const list = $('release-list'); list.replaceChildren();
-    for (const r of model.state.releases.filter(r => !r.testing)) {
+    fill($('release-list'), model.state.releases.filter(r => !r.testing), r => r.version, r => r.publishedAt.slice(0, 10) + ' · ' + mib(r.size),
+      'Brak gotowych wydań Windows x64. Sprawdź połączenie i odśwież katalog.');
+    fill($('testing-list'), model.state.releases.filter(r => r.testing), about, r => stamp(r) + ' · ' + r.tag.replace(/^panel-/, 'build ').slice(0, 14) + ' · ' + mib(r.size),
+      'Brak buildów testowych. Zleć build z panelu zadań.');
+  }
+  function fill(list, releases, title, meta, empty) {
+    list.replaceChildren();
+    for (const r of releases) {
       const row = document.createElement('div'); row.className = 'release';
       const info = document.createElement('div'), line = document.createElement('div'); line.className = 'release-title';
-      const title = document.createElement('strong'); title.textContent = r.version; line.append(title);
+      const head = document.createElement('strong'); head.textContent = title(r); line.append(head);
       if (r.key === model.state.installed?.key) { const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = 'Zainstalowana'; line.append(badge); }
-      const meta = document.createElement('p'); meta.className = 'muted'; meta.textContent = r.publishedAt.slice(0, 10) + ' · ' + mib(r.size);
-      info.append(line, meta);
+      const sub = document.createElement('p'); sub.className = 'muted'; sub.textContent = meta(r);
+      info.append(line, sub);
       const button = document.createElement('button'); button.type = 'button'; button.textContent = model.state.preferences.selection === 'pin:' + r.key ? 'Przypięta' : 'Wybierz';
       button.disabled = model.busy; button.addEventListener('click', () => choose(r, 'pin:' + r.key)); row.append(info, button); list.append(row);
     }
-    if (!list.children.length) { const note = document.createElement('p'); note.className = 'muted'; note.textContent = 'Brak gotowych wydań Windows x64. Sprawdź połączenie i odśwież katalog.'; list.append(note); }
+    if (!list.children.length) { const note = document.createElement('p'); note.className = 'muted'; note.textContent = empty; list.append(note); }
   }
   document.querySelectorAll('[data-page]').forEach(n => n.addEventListener('click', () => show(n.dataset.page)));
   document.querySelectorAll('[name="channel"]').forEach(n => n.addEventListener('change', () => choose(target(n.value), n.value)));
