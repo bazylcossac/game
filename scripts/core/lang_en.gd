@@ -3,6 +3,12 @@ extends RefCounted
 ## English text. Keys are the Polish strings in the code; see T for how they are applied.
 
 const TEXT := {
+	"Karabin pulsacyjny KP-20": "KP-20 pulse rifle",
+	"KP-20": "KP-20",
+	"V / ŚPM": "V / MMB",
+	"Zmiana celownika KP-20": "Switch the KP-20's sight",
+	"[V] KOLIMATOR": "[V] RED DOT",
+	"[V] LUNETA 2,5x": "[V] 2.5x MAGNIFIER",
 	"X: przerwij": "X: cancel",
 	"1 2 3 4": "1 2 3 4",
 	"Broń (4: tarcza ciężkiego Rebelii)": "Weapons (4: the rebel heavy's shield)",

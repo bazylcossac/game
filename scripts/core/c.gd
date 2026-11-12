@@ -24,7 +24,7 @@ const NEUTRAL_COLOR := Color(0.72, 0.72, 0.68)
 ## Beam colours are pushed above 1.0 so they bloom through the glow pass.
 const TEAM_BEAM := [Color(0.16, 0.5, 3.0), Color(3.0, 0.1, 0.07)]
 
-enum W { PISTOL, CARBINE, SNIPER, HEAVY, SWORD, SMG, ASSAULT, SCATTER, SILENT, MECH_GOLEM, MECH_GOLIAT, MECH_LAUNCHER, LIGHTSABER, TANK_CANNON, TANK_MG, REVOLVER, MPISTOL, SMG2, RIFLE, RAIL, GREATSWORD, AT_ROCKET, APC_NONE, MINIGUN, ARM_CANNON, ARM_ROCKETS, ENERGY_SHIELD }
+enum W { PISTOL, CARBINE, SNIPER, HEAVY, SWORD, SMG, ASSAULT, SCATTER, SILENT, MECH_GOLEM, MECH_GOLIAT, MECH_LAUNCHER, LIGHTSABER, TANK_CANNON, TANK_MG, REVOLVER, MPISTOL, SMG2, RIFLE, RAIL, GREATSWORD, AT_ROCKET, APC_NONE, MINIGUN, ARM_CANNON, ARM_ROCKETS, ENERGY_SHIELD, DMR }
 
 const WEAPONS := {
 	W.AT_ROCKET: {
@@ -54,6 +54,17 @@ const WEAPONS := {
 		"spread_hip": 4.5, "spread_ads": 0.02, "spread_move": 2.4, "recoil": 4.2, "range": 320.0,
 		"falloff_start": 300.0, "falloff_min": 1.0, "ads_fov": 0.3, "sound": "laser_sniper", "beam": 0.06,
 		"move_mult": 0.94,
+	},
+	## The marksman's pulse rifle: one heavy bolt per pull, quicker than the beam rifle but weaker.
+	## It carries two sights. Without the magnifier it aims like a rifle with a red dot; the
+	## magnifier flipped in front of the dot ("magnified") turns it into a quick sniper rifle.
+	W.DMR: {
+		"name": "Karabin pulsacyjny KP-20", "short": "KP-20", "melee": false, "auto": false,
+		"damage": 54.0, "head_mult": 2.0, "rate": 0.48, "mag": 10, "reserve": 50, "reload": 2.5,
+		"spread_hip": 2.8, "spread_ads": 0.16, "spread_move": 1.7, "recoil": 2.7, "range": 300.0,
+		"falloff_start": 150.0, "falloff_min": 0.85, "ads_fov": 0.72, "sound": "laser_marksman", "beam": 0.05,
+		"move_mult": 0.95,
+		"magnified": {"ads_fov": 0.4, "spread_ads": 0.18, "ads_speed": 0.72},
 	},
 	W.HEAVY: {
 		"name": "Działko plazmowe", "short": "DZIAŁKO", "melee": false, "auto": true,

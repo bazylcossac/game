@@ -17,7 +17,7 @@ static func _core(team: int) -> Material:
 const DETAIL_RANGE := 16.0
 
 static var _third_person := {}
-const ASSETS := {C.W.PISTOL: "pistol", C.W.CARBINE: "carbine", C.W.SNIPER: "sniper", C.W.HEAVY: "heavy", C.W.MINIGUN: "minigun", C.W.SMG: "smg", C.W.ASSAULT: "assault", C.W.SCATTER: "scatter", C.W.SILENT: "silent", C.W.REVOLVER: "revolver", C.W.MPISTOL: "mpistol", C.W.SMG2: "smg2", C.W.RIFLE: "rifle", C.W.RAIL: "rail", C.W.AT_ROCKET: "at_launcher"}
+const ASSETS := {C.W.PISTOL: "pistol", C.W.CARBINE: "carbine", C.W.SNIPER: "sniper", C.W.HEAVY: "heavy", C.W.MINIGUN: "minigun", C.W.SMG: "smg", C.W.ASSAULT: "assault", C.W.SCATTER: "scatter", C.W.SILENT: "silent", C.W.REVOLVER: "revolver", C.W.MPISTOL: "mpistol", C.W.SMG2: "smg2", C.W.RIFLE: "rifle", C.W.RAIL: "rail", C.W.AT_ROCKET: "at_launcher", C.W.DMR: "dmr"}
 
 ## Height of the sight line per weapon, so any optic centres where the aim pose expects.
 const SIGHT_Y := {C.W.HEAVY: 0.205, C.W.MINIGUN: 0.205}
@@ -27,8 +27,18 @@ const GRIP_AT := {
 	C.W.CARBINE: Vector2(0.022, -0.37), C.W.ASSAULT: Vector2(0.024, -0.33), C.W.RIFLE: Vector2(0.02, -0.42),
 	C.W.HEAVY: Vector2(0.03, -0.42), C.W.MINIGUN: Vector2(-0.02, -0.3), C.W.SMG: Vector2(0.012, -0.215), C.W.SMG2: Vector2(0.012, -0.225),
 	C.W.SCATTER: Vector2(0.008, -0.32), C.W.SNIPER: Vector2(0.02, -0.3), C.W.SILENT: Vector2(0.02, -0.32),
-	C.W.RAIL: Vector2(0.024, -0.24),
+	C.W.RAIL: Vector2(0.024, -0.24), C.W.DMR: Vector2(0.02, -0.4),
 }
+## The KP-20's flip magnifier turns on a hinge along the left of its mount, parallel to the barrel.
+## Folded, it lies beside the red dot; flipped up, it sits right behind it on the sight line.
+const MAGNIFIER_HINGE := Vector3(-0.021, 0.124, 0.0)
+const MAGNIFIER_FOLDED := 1.95
+
+
+## Where the magnifier sits for `open` between 0 (folded aside) and 1 (on the sight line).
+static func magnifier_pose(open: float) -> Transform3D:
+	var turn := Basis(Vector3.BACK, MAGNIFIER_FOLDED * (1.0 - open))
+	return Transform3D(turn, MAGNIFIER_HINGE - turn * MAGNIFIER_HINGE)
 
 
 static func build(weapon_id: int, team: int, parts: Array = []) -> Node3D:
@@ -37,7 +47,7 @@ static func build(weapon_id: int, team: int, parts: Array = []) -> Node3D:
 	if ASSETS.has(weapon_id):
 		# Each side has its own arsenal: the same weapon, built by a different hand.
 		var imported := ModelAssets.load_model("res://assets/models/armory/%s%s.glb" % ["e_" if team == C.Team.EMPIRE and weapon_id != C.W.MINIGUN else "", ASSETS[weapon_id]], team)
-		for label: String in ["Body", "Cell", "IronSight", "ThirdPersonOnly", "Muzzle", "Spin"]:
+		for label: String in ["Body", "Cell", "IronSight", "ThirdPersonOnly", "Muzzle", "Spin", "Magnifier"]:
 			var part := imported.find_child(label + "*", true, false) as Node3D
 			if part:
 				part.reparent(root, false)

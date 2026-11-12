@@ -15,6 +15,8 @@ func _ready() -> void:
 	Net.side_requested.connect(_on_side_requested)
 	Net.connect_failed.connect(_on_connect_failed)
 	Net.session_ended.connect(_on_session_ended)
+	if Settings.has_arg("real-levels"):
+		Gear.everyone_max = false
 	if Settings.has_arg("server"):
 		_start_dedicated()
 		return

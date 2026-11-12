@@ -70,6 +70,7 @@ Czołg ma dwa niezależne stanowiska i fizyczny kadłub, a inżynier buduje fort
 | 1, 2, 3 | Broń główna, pistolet, miecz (w mechu 1 działo, 2 granatnik) |
 | 4 | Wyrzutnia przeciwpancerna, jeśli szturmowiec wybrał zestaw rakiet |
 | F | Szybkie cięcie mieczem, potem powrót do broni |
+| V / środkowy przycisk myszy | KP-20: zmiana celownika, kolimator albo powiększalnik 2,5x (inżynier: wybór fortyfikacji) |
 | G | Granat plazmowy (mech nie ma granatów) |
 | B | Wybór superklasy, gdy masz monetę |
 | E | Wsiadanie do czołgu lub transportera i wysiadanie (2 s, drugie E przerywa) |

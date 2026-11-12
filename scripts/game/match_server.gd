@@ -67,7 +67,7 @@ func add_human(peer: int, player_name: String, token: String, side := 0) -> void
 	# A free-for-all has no sides: everyone wears the same colours there.
 	var human := world.add_soldier(sid, peer, C.Team.RESISTANCE if world.ffa else clampi(side, 0, 1), nice)
 	human.token = token
-	human.level = Gear.level_of(progress.xp(token))
+	human.level = Gear.level_for(progress.xp(token))
 	_balance_bots()
 	_send_roster()
 	if peer != multiplayer.get_unique_id():
@@ -1405,7 +1405,7 @@ func _grant_xp(s: Soldier, amount: int) -> void:
 	if s.peer == 0 or s.token == "":
 		return
 	var before := s.level
-	s.level = Gear.level_of(progress.add(s.token, amount))
+	s.level = Gear.level_for(progress.add(s.token, amount))
 	_send_profile(s)
 	if s.level > before:
 		var unlocked: Array = []

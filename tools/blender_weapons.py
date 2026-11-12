@@ -6,7 +6,7 @@ Each gun is its own design, drawn from side outlines with real holes, rails and 
 The origin sits at the grip and forward is -Z. WeaponFactory relies on these fixed points:
   rifle bore y .06, pistol bore y .08; top rail surface y .1 at z -.05, so fitted optics line up;
   sight line y .145 (.112 pistols, .205 heavy); right hand on the grip near (0, -.07, .05).
-Node names Body, Cell, IronSight, ThirdPersonOnly and Muzzle are what the game looks for.
+Node names Body, Cell, IronSight, ThirdPersonOnly, Muzzle and Magnifier are what the game looks for.
 """
 import math
 import sys
@@ -30,7 +30,7 @@ PALETTE.update({
     "SightDot": ((0.35, 1.0, 0.45), 0.0, 0.4, 4.0),
     "_Worn": ((1, 0, 1), 0, 1, 0), "SmokeGrey": ((0.7, 0.7, 0.72), 0.1, 0.6, 0), "WarningRed": ((0.6, 0.06, 0.03), 0.1, 0.5, 0),
 })
-BODY, CELL, SIGHT, STOCK, SPIN = "Body", "Cell", "IronSight", "ThirdPersonOnly", "Spin"
+BODY, CELL, SIGHT, STOCK, SPIN, MAGNIFIER = "Body", "Cell", "IronSight", "ThirdPersonOnly", "Spin", "Magnifier"
 LEATHERISH = WOOD
 RIFLE_BORE, PISTOL_BORE = 0.06, 0.08
 DOT = "SightDot"
@@ -360,6 +360,81 @@ def sniper():
     profile(STOCK, "Butt pad", [(0.408, 0.092, 0.008), (0.428, 0.092, 0.008), (0.432, -0.08, 0.008), (0.412, -0.08, 0.008)], 0.02, BLACK, 0.003, (), 2)
     scope_on_rail(-0.075, 0.145, 0.34, 0.025)
     muzzle_mark(-1.12, RIFLE_BORE)
+
+
+# ---------------------------------------------------------------- KP-20, the two-sight marksman rifle
+# The game turns the Magnifier part about this hinge (WeaponFactory.MAGNIFIER_HINGE): it is modelled
+# open, on the sight line, and folded aside in the game by turning it round the hinge.
+MAG_HINGE = (-0.021, 0.124)
+
+
+def kp_optics(housing, metal, accent):
+    """Red dot in front, flip magnifier behind it, both on the top rail.
+
+    The dot is a short open tube with a glowing bead on the far end. The magnifier is a stubby tube
+    on two arms that wrap a hinge pin along the left of its base, with a thumb tab to flip it."""
+    y = 0.145
+    with at(0, 0, -0.07):
+        hollow(BODY, "Dot tube", [(0.024, 0.0212), (0.024, 0.0242), (0.021, 0.0256), (-0.021, 0.0256), (-0.024, 0.0242), (-0.024, 0.0212)], housing, 28, y)
+        profile(BODY, "Dot riser", [(-0.03, 0.1), (0.03, 0.1), (0.026, y - 0.02, 0.004), (-0.026, y - 0.02, 0.004)], 0.0125, housing, 0.0012)
+        profile(BODY, "Dot clamp", [(-0.034, 0.098), (0.034, 0.098), (0.034, 0.108, 0.002), (-0.034, 0.108, 0.002)], 0.0148, metal, 0.001)
+        circle = [(0.006 * math.cos(math.tau * k / 12), y - 0.002 + 0.006 * math.sin(math.tau * k / 12)) for k in range(12)]
+        profile(BODY, "Dot dial", circle, 0.006, metal, 0.0006, x=0.029)
+        profile(BODY, "Dot hood", [(-0.022, y + 0.024), (0.012, y + 0.024), (0.012, y + 0.03, 0.002), (-0.022, y + 0.03, 0.002)], 0.012, housing, 0.0008)
+        lathe(BODY, "Dot bead", [(-0.0205, 0.0), (-0.0205, 0.0017), (-0.0215, 0.0017), (-0.0215, 0.0)], DOT, 10, y)
+    # The flip mount: a clamp on the rail and a block on its left carrying the hinge pin.
+    profile(BODY, "Flip base", [(0.0, 0.098), (0.088, 0.098), (0.086, 0.112, 0.003), (0.002, 0.112, 0.003)], 0.0145, metal, 0.0012)
+    hx, hy = MAG_HINGE
+    profile(BODY, "Hinge block", [(0.004, 0.104), (0.084, 0.104), (0.084, hy, 0.003), (0.004, hy, 0.003)], 0.0048, housing, 0.0008, x=hx)
+    lathe(BODY, "Hinge pin", [(0.09, 0.0), (0.09, 0.0034), (-0.002, 0.0034), (-0.002, 0.0)], metal, 10, hy, hx)
+    for z in (0.016, 0.07):
+        pts = [(z + 0.0042 * math.cos(math.tau * k / 8), 0.105 + 0.0042 * math.sin(math.tau * k / 8)) for k in range(8)]
+        profile(BODY, "Base screw", pts, 0.0008, EDGE, 0, x=0.0154)
+    # The magnifier itself, modelled open.
+    lathe(MAGNIFIER, "Magnifier tube", [(0.093, 0.0172), (0.089, 0.0194), (0.07, 0.0194), (0.06, 0.0166), (0.026, 0.0166), (0.014, 0.0186), (0.004, 0.0186), (0.001, 0.0162)], housing, 20, y, bevel=0.0006)
+    lathe(MAGNIFIER, "Eye lens", [(0.0925, 0.0164), (0.093, 0.0)], LENS, 16, y)
+    lathe(MAGNIFIER, "Objective lens", [(0.0015, 0.0156), (0.001, 0.0)], LENS, 16, y)
+    lathe(MAGNIFIER, "Power ring", [(0.052, 0.0168), (0.049, 0.0176), (0.036, 0.0176), (0.033, 0.0168)], accent, 20, y)
+    for z in (0.02, 0.074):
+        tube(MAGNIFIER, "Swing arm", [(hx, hy, z), (-0.009, y - 0.012, z)], 0.0042, metal, 8)
+        lathe(MAGNIFIER, "Knuckle", [(z + 0.008, 0.0), (z + 0.008, 0.0062), (z - 0.008, 0.0062), (z - 0.008, 0.0)], metal, 12, hy, hx)
+    profile(MAGNIFIER, "Flip tab", [(0.058, y - 0.004), (0.082, y - 0.004), (0.082, y + 0.008, 0.003), (0.064, y + 0.006, 0.003)], 0.0018, EDGE, 0.0004, x=-0.0205)
+
+
+def dmr():
+    """KP-20 pulse marksman rifle, Rebellion build: a long forged receiver, a free-floated guard whose
+    windows show the glowing pulse coil round the barrel, a heavy fluted barrel ending in a square
+    pulse brake, an adjustable skeleton stock, and the two-sight optic."""
+    rifle_lower(0.0158, POLY, -0.172, -0.098, STEEL)
+    upper = [(0.092, 0.058), (0.092, 0.096, 0.004), (-0.235, 0.096), (-0.242, 0.056), (0.0, 0.056)]
+    profile(BODY, "Upper receiver", upper, 0.0162, EDGE, 0.002)
+    rail(0.09, -0.235)
+    port(-0.02, -0.105, 0.062, 0.088, 0.0162)
+    upper_details(0.0162)
+    pins([(-0.225, 0.072)], 0.0162, 0.004)
+    profile(BODY, "Charging handle", [(0.092, 0.084), (0.11, 0.084), (0.114, 0.094, 0.003), (0.092, 0.096)], 0.017, EDGE, 0.0008)
+    guard = [(-0.235, 0.018, 0.008), (-0.235, 0.094), (-0.6, 0.094), (-0.625, 0.08, 0.006), (-0.625, 0.03, 0.006), (-0.6, 0.018, 0.008)]
+    profile(BODY, "Handguard", guard, 0.024, OLIVE, 0.0036, slots(-0.252, -0.598, 0.042, 0.078, 6, 0.36))
+    lathe(BODY, "Pulse coil", [(-0.245, 0.0), (-0.245, 0.0185), (-0.595, 0.0185), (-0.595, 0.0)], CORE, 12, RIFLE_BORE)
+    for z in (-0.3, -0.36, -0.42, -0.48, -0.54):
+        lathe(BODY, "Coil band", [(z + 0.004, 0.0186), (z + 0.003, 0.0205), (z - 0.003, 0.0205), (z - 0.004, 0.0186)], BLACK, 12, RIFLE_BORE)
+    rail(-0.242, -0.6)
+    fluted(BODY, "Barrel", -0.2, -0.82, 0.0128, RIFLE_BORE, STEEL, 8)
+    section(BODY, "Pulse brake", [(-0.808, 0.0158, 0.0158, 0.005), (-0.9, 0.0175, 0.0168, 0.006)], STEEL, 0.0012, 0.0, RIFLE_BORE)
+    for z in (-0.828, -0.848, -0.868, -0.888):
+        for side in (1, -1):
+            profile(BODY, "Brake vent", [(z - 0.0055, RIFLE_BORE - 0.01), (z + 0.0055, RIFLE_BORE - 0.01), (z + 0.0055, RIFLE_BORE + 0.01), (z - 0.0055, RIFLE_BORE + 0.01)], 0.0012, BLACK, 0, x=side * 0.0172)
+    crown(-0.9, 0.0125, RIFLE_BORE)
+    straight_mag(-0.135, -0.014, 0.12, 0.07, 0.0132, 0.014, 2, STEEL)
+    lathe(STOCK, "Buffer tube", [(0.082, 0.0155), (0.3, 0.0155), (0.304, 0.0)], STEEL, 12, RIFLE_BORE + 0.006)
+    outline = [(0.15, 0.096), (0.37, 0.1, 0.006), (0.376, -0.07, 0.008), (0.33, -0.074, 0.01), (0.25, -0.01, 0.02), (0.15, 0.03, 0.01)]
+    profile(STOCK, "Stock frame", outline, 0.017, POLY, 0.003, [[(0.2, 0.074, 0.006), (0.33, 0.078, 0.006), (0.338, -0.048, 0.006), (0.302, -0.05, 0.006), (0.24, 0.018, 0.012)]], 2)
+    profile(STOCK, "Cheek riser", [(0.2, 0.098), (0.35, 0.102), (0.345, 0.126, 0.01), (0.21, 0.122, 0.01)], 0.0165, OLIVE, 0.003, (), 2)
+    for z in (0.23, 0.32):
+        tube(STOCK, "Riser post", [(0, 0.09, z), (0, 0.104, z)], 0.0045, EDGE, 8)
+    profile(STOCK, "Butt pad", [(0.372, 0.104, 0.008), (0.39, 0.104, 0.008), (0.394, -0.074, 0.008), (0.376, -0.074, 0.008)], 0.02, BLACK, 0.003, (), 2)
+    kp_optics(STEEL, EDGE, OLIVE)
+    muzzle_mark(-0.9, RIFLE_BORE)
 
 
 def silent():
@@ -932,6 +1007,23 @@ def e_sniper():
     bipod_folded(-0.47, 0.02)
 
 
+def e_dmr():
+    """KP-20 as Korpo builds it: the open machine receiver, a long bone forend over a slim ribbed barrel,
+    the forked emitter, the chassis stock and the same two-sight optic in dark gunmetal."""
+    e_grip()
+    e_trigger()
+    e_receiver(-0.24, 0.094, 0.0135)
+    rail(0.08, -0.235)
+    e_forend(-0.24, -0.6, 0.018, RIFLE_BORE + 0.03, 0.016)
+    profile(BODY, "Forend charge line", [(-0.26, 0.06), (-0.58, 0.06), (-0.58, 0.064), (-0.26, 0.064)], 0.0168, CORE, 0)
+    e_barrel(-0.2, -0.79, 0.0115, RIFLE_BORE, -0.61, 0.028)
+    e_emitter(-0.87, 0.0115, RIFLE_BORE, 0.08)
+    e_clip(-0.135, -0.002, 0.12, 0.054, 0.0118)
+    e_stock("chassis")
+    kp_optics(GUNMETAL, EDGE, BONE)
+    muzzle_mark(-0.87, RIFLE_BORE)
+
+
 def e_rail():
     e_long(1.16, (-0.21, -0.3), 0.024, "chassis", (-0.135, 0.002, 0.12, 0.066, 0.016), r=0.0095, rib_from=-0.34, rib_gap=0.1, scope=0.32, reach=0.1)
     for side in (1, -1):
@@ -1045,7 +1137,7 @@ def e_at_launcher():
 EMPIRE_GUNS = [
     ("e_pistol", e_pistol), ("e_carbine", e_carbine), ("e_sniper", e_sniper), ("e_heavy", e_heavy), ("e_smg", e_smg), ("e_assault", e_assault),
     ("e_scatter", e_scatter), ("e_silent", e_silent), ("e_revolver", e_revolver), ("e_mpistol", e_mpistol), ("e_smg2", e_smg2), ("e_rifle", e_rifle),
-    ("e_rail", e_rail), ("e_at_launcher", e_at_launcher),
+    ("e_rail", e_rail), ("e_at_launcher", e_at_launcher), ("e_dmr", e_dmr),
 ]
 
 
@@ -1328,7 +1420,7 @@ def finish_attachments():
 GUNS = [
     ("pistol", pistol), ("carbine", carbine), ("sniper", sniper), ("heavy", heavy), ("smg", smg), ("assault", assault),
     ("scatter", scatter), ("silent", silent), ("revolver", revolver), ("mpistol", mpistol), ("smg2", smg2), ("rifle", rifle),
-    ("rail", rail_rifle), ("minigun", minigun), ("at_launcher", at_launcher), ("rocket_round", rocket_round), ("rocket_load", rocket_load),
+    ("rail", rail_rifle), ("dmr", dmr), ("minigun", minigun), ("at_launcher", at_launcher), ("rocket_round", rocket_round), ("rocket_load", rocket_load),
 ]
 MARKS = []
 LAYOUT = []
@@ -1339,7 +1431,7 @@ def finish_gun(name):
     root = bpy.data.objects.new("Weapon_" + name, None)
     bpy.context.collection.objects.link(root)
     tris = 0
-    for part in (BODY, CELL, SIGHT, STOCK, SPIN):
+    for part in (BODY, CELL, SIGHT, STOCK, SPIN, MAGNIFIER):
         if part not in PARTS:
             continue
         obj = join(part)

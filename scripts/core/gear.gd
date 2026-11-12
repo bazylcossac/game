@@ -4,6 +4,10 @@ extends RefCounted
 ## the client uses it to show choices, the server to enforce them.
 
 const MAX_LEVEL := 30
+## Testing (asked for on 2026-11-12): every player counts as fully levelled, so all weapons, parts and
+## perks can be tried at once. Experience is still earned and stored, so turning this off later
+## gives everyone back their real level. `--real-levels` on the host turns it off for one run.
+static var everyone_max := true
 const SLOTS := ["optic", "muzzle", "grip", "cell"]
 const SLOT_NAMES := {"optic": "Celownik", "muzzle": "Wylot lufy", "grip": "Chwyt", "cell": "Ogniwo", "barrel": "Lufy", "motor": "Napęd", "core": "Rdzeń działa", "pod": "Komora rakiet", "loader": "Podajnik"}
 const PERK_SLOTS := ["body", "kit"]
@@ -13,7 +17,7 @@ const PERK_SLOT_NAMES := {"body": "Perk: ciało", "kit": "Perk: sprzęt"}
 const PRIMARIES := [
 	[C.W.CARBINE, C.W.ASSAULT, C.W.RIFLE, C.W.HEAVY, C.W.SWORD, C.W.LIGHTSABER, C.W.GREATSWORD],
 	[C.W.SMG, C.W.SMG2, C.W.SCATTER],
-	[C.W.SNIPER, C.W.SILENT, C.W.RAIL],
+	[C.W.SNIPER, C.W.SILENT, C.W.RAIL, C.W.DMR],
 	[C.W.SCATTER, C.W.SMG2, C.W.RIFLE],
 	[C.W.CARBINE, C.W.ASSAULT, C.W.SMG2],
 	[C.W.MINIGUN],
@@ -21,7 +25,7 @@ const PRIMARIES := [
 ## The same, for Korpo's classes.
 const PRIMARIES_EMPIRE := [
 	[C.W.ASSAULT, C.W.CARBINE, C.W.RIFLE, C.W.LIGHTSABER, C.W.SWORD, C.W.GREATSWORD],
-	[C.W.SNIPER, C.W.SILENT, C.W.RAIL],
+	[C.W.SNIPER, C.W.SILENT, C.W.RAIL, C.W.DMR],
 	[C.W.ARM_CANNON],
 	[C.W.SMG2, C.W.SMG, C.W.SCATTER],
 	[C.W.ASSAULT, C.W.CARBINE, C.W.SMG2],
@@ -33,7 +37,7 @@ const FIXED_SIDEARMS := {C.W.ARM_CANNON: [C.W.ARM_ROCKETS]}
 
 const WEAPON_LEVEL := {
 	C.W.REVOLVER: 2, C.W.LIGHTSABER: 3, C.W.SMG2: 4, C.W.ASSAULT: 5, C.W.SILENT: 6, C.W.MPISTOL: 8,
-	C.W.SCATTER: 1, C.W.RIFLE: 10, C.W.GREATSWORD: 12, C.W.RAIL: 13, C.W.HEAVY: 16,
+	C.W.SCATTER: 1, C.W.RIFLE: 10, C.W.GREATSWORD: 12, C.W.RAIL: 13, C.W.HEAVY: 16, C.W.DMR: 9,
 }
 
 const RIFLE_SLOTS := ["optic", "muzzle", "grip", "cell"]
@@ -47,7 +51,8 @@ const WEAPON_SLOTS := {
 	C.W.ARM_CANNON: ["core", "cell"],
 	C.W.ARM_ROCKETS: ["pod", "loader"],
 	C.W.SMG: RIFLE_SLOTS, C.W.SMG2: RIFLE_SLOTS, C.W.SCATTER: ["optic", "grip", "cell"],
-	C.W.SNIPER: SCOPED_SLOTS, C.W.SILENT: RIFLE_SLOTS, C.W.RAIL: ["grip", "cell"],
+	# Both its sights are built in, so there is nothing to put on the rail.
+	C.W.SNIPER: SCOPED_SLOTS, C.W.DMR: SCOPED_SLOTS, C.W.SILENT: RIFLE_SLOTS, C.W.RAIL: ["grip", "cell"],
 	C.W.PISTOL: SIDEARM_SLOTS, C.W.REVOLVER: SIDEARM_SLOTS, C.W.MPISTOL: SIDEARM_SLOTS,
 }
 
@@ -69,6 +74,7 @@ const RECOIL := {
 	C.W.SMG2: {"h": 1.4, "bias": 0.25, "rise": 0.03},
 	C.W.SCATTER: {"h": 0.6, "bias": 0.0, "rise": 0.0},
 	C.W.SNIPER: {"h": 0.3, "bias": 0.0, "rise": 0.0},
+	C.W.DMR: {"h": 0.35, "bias": 0.1, "rise": 0.03},
 	C.W.SILENT: {"h": 0.4, "bias": -0.1, "rise": 0.0},
 	C.W.RAIL: {"h": 0.5, "bias": 0.0, "rise": 0.0},
 	C.W.PISTOL: {"h": 0.5, "bias": 0.1, "rise": 0.02},
@@ -176,6 +182,11 @@ static func xp_total(level: int) -> int:
 	for l in range(1, level):
 		total += xp_step(l)
 	return total
+
+
+## The level a player plays at: their real one, unless everyone is at the cap for testing.
+static func level_for(xp: int) -> int:
+	return MAX_LEVEL if everyone_max else level_of(xp)
 
 
 static func level_of(xp: int) -> int:
@@ -313,3 +324,19 @@ static func stats(weapon: int, parts: Array = [], perks: Array = []) -> Dictiona
 	if perks.has("scavenger"):
 		w["reserve"] = int(round(float(w["reserve"]) * 1.5))
 	return w
+
+
+## The same weapon looked at through its second sight, or an empty dictionary if it has only one.
+## Only aiming changes: the zoom, how tight the shot goes when aimed and how fast the sight comes
+## up. Damage, rate and range stay, so the server never needs to know which sight is in use.
+static func magnified(w: Dictionary) -> Dictionary:
+	if not w.has("magnified"):
+		return {}
+	var m: Dictionary = w["magnified"]
+	var out := w.duplicate()
+	out["ads_fov"] = float(m["ads_fov"])
+	out["spread_ads"] = float(w["spread_ads"]) * float(m["spread_ads"])
+	out["ads_speed"] = float(w["ads_speed"]) * float(m["ads_speed"])
+	out["scope"] = true
+	out["reticle"] = "magnifier"
+	return out

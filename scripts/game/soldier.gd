@@ -39,6 +39,11 @@ var _foot_ammo := {}
 ## Weapons, attachments and perks chosen for this life. Empty for bots.
 var kit := {}
 var slot_stats: Array[Dictionary] = []
+## The same weapons seen through their second sight; empty where a weapon has only one.
+var magnified_stats: Array[Dictionary] = []
+## Which sight the player looks through on a weapon that has two: 0 the dot, 1 the magnifier.
+## Only the owner's client uses it, and it is kept from one life to the next.
+var sight := 0
 var control: int = Driver.BOT
 
 var alive := false
@@ -205,7 +210,16 @@ func weapon_id() -> int:
 
 ## The weapon in hand, with its attachments and perks already applied.
 func weapon() -> Dictionary:
-	return slot_stats[slot] if slot < slot_stats.size() else C.WEAPONS[weapon_id()]
+	if slot >= slot_stats.size():
+		return C.WEAPONS[weapon_id()]
+	if sight == 1 and slot < magnified_stats.size() and not magnified_stats[slot].is_empty():
+		return magnified_stats[slot]
+	return slot_stats[slot]
+
+
+## Whether the weapon in hand carries a second sight to flip to.
+func has_two_sights() -> bool:
+	return slot < magnified_stats.size() and not magnified_stats[slot].is_empty()
 
 
 func weapon_parts() -> Array:
@@ -404,12 +418,14 @@ func _apply_class(new_class: int) -> void:
 	mags.resize(loadout.size())
 	reserves.resize(loadout.size())
 	slot_stats.clear()
+	magnified_stats.clear()
 	for i in loadout.size():
 		var w := Gear.stats(loadout[i], parts[i], perks)
 		if loadout[i] == C.W.AT_ROCKET:
 			w["mag"] = 1
 			w["reserve"] = 2
 		slot_stats.append(w)
+		magnified_stats.append(Gear.magnified(w))
 		mags[i] = w["mag"]
 		reserves[i] = w["reserve"]
 	nades = [int(cd["grenades"]) + (1 if has_perk("grenadier") else 0), int(cd.get("smoke", 0)), int(cd.get("fire", 0))]
