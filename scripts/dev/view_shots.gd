@@ -8,6 +8,7 @@ const GUNS := [
 	[0, 5, "tarcza", {"slot": 3}], [0, 0, "wychylenie", {"lean": 1}],
 	[0, 0, "kolimator", {"parts_p": ["reddot"]}], [0, 0, "holo", {"parts_p": ["holo"]}], [1, 0, "kolimator_imperium", {"parts_p": ["reddot"]}],
 	[0, 0, "pistolet", {"slot": 1}], [1, 0, "pistolet_imperium", {"slot": 1}],
+	[0, 2, "kp20", {"primary": C.W.DMR, "flip": true}], [1, 1, "kp20_korpo", {"primary": C.W.DMR, "flip": true}],
 ]
 
 var out_dir := ""
@@ -76,6 +77,24 @@ func _gun(team: int, class_id: int, label: String, kit: Dictionary) -> void:
 	await _shot("%s_cel" % label)
 	Input.action_release("aim")
 	await _wait(0.5)
+	if kit.has("flip"):
+		# The magnifier flipping in, frame by frame, then a look through it.
+		var flip_vm: ViewModel = w.controller.vm
+		s.sight = 1
+		flip_vm.set_sight(true, true)
+		var gone := 0.0
+		for at: float in [0.18, 0.36, 0.46, 0.62, 0.85]:
+			await _wait((at - gone) * ViewModel.FLIP_TIME)
+			gone = at
+			await _shot("%s_zmiana_%d" % [label, int(at * 100.0)])
+		await _wait(0.4)
+		await _shot("%s_biodro_luneta" % label)
+		Input.action_press("aim")
+		await _wait(0.9)
+		await _shot("%s_cel_luneta" % label)
+		Input.action_release("aim")
+		await _wait(0.3)
+		s.sight = 0
 	if kit.has("ordnance"):
 		var view: Node = w.controller.get("vm")
 		var length: float = C.WEAPONS[C.W.AT_ROCKET]["reload"]

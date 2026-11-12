@@ -5,6 +5,9 @@ var failed := 0
 
 
 func _ready() -> void:
+	# The checks below expect a new player's level, so the testing rule that puts everyone at the
+	# top level is off here; --test=dmr covers that rule.
+	Gear.everyone_max = false
 	Net.start_dedicated({"mode": "podboj", "map": "stare_miasto", "bots_per_team": 3}, 17866)
 	while Net.world == null:
 		await get_tree().process_frame

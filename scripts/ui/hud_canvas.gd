@@ -123,7 +123,10 @@ func _draw() -> void:
 	var me := world.local
 	var alive := me != null and me.alive
 	if c.scoped:
-		_draw_scope()
+		if me != null and me.weapon().get("reticle", "") == "magnifier":
+			_draw_magnifier()
+		else:
+			_draw_scope()
 	if c.sighted:
 		_draw_sight()
 	if alive:
@@ -407,6 +410,11 @@ func _draw_weapon_panel(s: Soldier) -> void:
 		_text(_f_semi, Vector2(right - res_w, y - 12), res_text, 30, UiKit.MUTED)
 		_text(_f_title, Vector2(right - res_w - 220, y - 12), mag_text, 58, UiKit.RED if low else UiKit.INK, HORIZONTAL_ALIGNMENT_RIGHT, 208)
 		_text(_f_semi, Vector2(right - 400, y + 14), name_text, 20, UiKit.MUTED, HORIZONTAL_ALIGNMENT_RIGHT, 400)
+		if s.has_two_sights():
+			# On the name's line, to its left: below it would fall off the bottom of the screen.
+			var sight := "[V] LUNETA 2,5x" if s.sight == 1 else "[V] KOLIMATOR"
+			var name_w := _f_semi.get_string_size(T.t(name_text), HORIZONTAL_ALIGNMENT_LEFT, -1, 20).x
+			_text(_f_semi, Vector2(right - name_w - 320, y + 14), sight, 20, UiKit.BRASS, HORIZONTAL_ALIGNMENT_RIGHT, 300)
 		if s.reload_t > 0.0:
 			var c := size * 0.5
 			var p: float = 1.0 - s.reload_t / float(w["reload"])
@@ -738,6 +746,34 @@ func _draw_hull_gauge(s: Soldier) -> void:
 	draw_colored_polygon(front, UiKit.BRASS)
 	draw_circle(c, 6.0, ink)
 	draw_line(c, c + Vector2(0, -30), ink, 2.0, true)
+
+
+## The KP-20 looking through its magnifier: a wider, brighter window than the sniper's scope, with
+## the red dot magnified behind it, a ring to frame a body at range and short stadia marks below.
+func _draw_magnifier() -> void:
+	var c := size * 0.5
+	var r := size.y * 0.47
+	var black := Color(0.0, 0.0, 0.0, 0.97)
+	draw_rect(Rect2(0, 0, c.x - r, size.y), black)
+	draw_rect(Rect2(c.x + r, 0, c.x - r, size.y), black)
+	draw_arc(c, r * 1.25, 0, TAU, 72, black, r * 0.5, true)
+	# The eyepiece rim: a dark band with a thin bevel catching the light.
+	draw_arc(c, r - 6.0, 0, TAU, 96, Color(0.02, 0.025, 0.03, 0.9), 14.0, true)
+	draw_arc(c, r - 13.0, 0, TAU, 96, Color(0.5, 0.55, 0.6, 0.25), 1.5, true)
+	var glow := Color(0.42, 1.0, 0.5, 0.95)
+	var ink := Color(0.0, 0.0, 0.0, 0.8)
+	# The dot, ringed so it holds a man-sized target at about a hundred metres.
+	draw_arc(c, 22.0, 0, TAU, 48, Color(glow.r, glow.g, glow.b, 0.75), 1.6, true)
+	draw_circle(c, 3.2, Color(0.0, 0.0, 0.0, 0.5))
+	draw_circle(c, 2.2, glow)
+	# Thick posts from the edge that stop short of the ring, so the centre stays clear.
+	for d: Vector2 in [Vector2.LEFT, Vector2.RIGHT, Vector2.DOWN]:
+		draw_line(c + d * (r - 14.0), c + d * 60.0, ink, 4.0)
+		draw_line(c + d * 60.0, c + d * 34.0, ink, 1.5)
+	# Holdover marks for falling bolts at longer range.
+	for i in range(1, 4):
+		var w := 12.0 - i * 2.0
+		draw_line(c + Vector2(-w, 34.0 + i * 22.0), c + Vector2(w, 34.0 + i * 22.0), ink, 1.5)
 
 
 func _draw_scope() -> void:

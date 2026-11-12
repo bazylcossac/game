@@ -91,6 +91,7 @@ func on_spawned() -> void:
 	vm.ads = 0.0
 	vm.visible = true
 	vm.weapon_id = -1
+	vm.set_sight(soldier.sight == 1)
 	vm.set_weapon(soldier.weapon_id(), soldier.weapon_parts())
 	world.hud.hide_deploy()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -245,13 +246,19 @@ func _physics_process(delta: float) -> void:
 				picker_open = false
 				Net.send_transform(C.SUPER_MECH + i)
 
+	# A gun with two sights: V or the middle button flips the magnifier in or out. The sight comes
+	# down while the hands do it, and the choice is kept for the next life.
+	if Input.is_action_just_pressed("sight_switch") and s.has_two_sights() and s.reload_t <= 0.0 and not vm.switching_sight() and s.switch_t <= 0.0:
+		s.sight = 1 - s.sight
+		vm.set_sight(s.sight == 1, true)
+
 	var aim_held := Input.is_action_pressed("aim")
 	if s.is_melee():
 		s.aiming = false
 		s.blocking = aim_held and s.stamina > 0.3
 	else:
 		s.blocking = false
-		s.aiming = aim_held and s.reload_t <= 0.0 and not s.sprinting and s.switch_t <= 0.0 and not designating and not s.weapon().get("shield", false)
+		s.aiming = aim_held and s.reload_t <= 0.0 and not s.sprinting and s.switch_t <= 0.0 and not designating and not s.weapon().get("shield", false) and not vm.switching_sight()
 
 	if Input.is_action_just_pressed("melee"):
 		if s.melee_slot() >= 0:
@@ -263,7 +270,7 @@ func _physics_process(delta: float) -> void:
 			# One cut and the gun comes back, unless the sword is what the player was holding.
 			if _melee_back >= 0:
 				_melee_back_t = float(s.weapon()["rate"]) + 0.12
-	elif Input.is_action_just_pressed("reload") and s.can_reload() and _pending_throw < 0.0:
+	elif Input.is_action_just_pressed("reload") and s.can_reload() and _pending_throw < 0.0 and not vm.switching_sight():
 		_reload()
 	elif Input.is_action_just_pressed("grenade"):
 		_throw_grenade()
@@ -380,7 +387,7 @@ func _try_attack() -> void:
 			return
 	else:
 		_spin = 0.0
-	if not wants:
+	if not wants or vm.switching_sight():
 		return
 	if s.can_fire():
 		_shoot()

@@ -27,6 +27,7 @@ const POSES := {
 	C.W.PISTOL: {"hip": Vector3(0.2, -0.22, -0.56), "ads": Vector3(0.0, -0.112, -0.46)},
 	C.W.CARBINE: {"hip": Vector3(0.2, -0.21, -0.46), "ads": Vector3(0.0, -0.145, -0.3)},
 	C.W.SNIPER: {"hip": Vector3(0.2, -0.22, -0.42), "ads": Vector3(0.0, -0.15, -0.2)},
+	C.W.DMR: {"hip": Vector3(0.2, -0.215, -0.44), "ads": Vector3(0.0, -0.145, -0.26)},
 	C.W.HEAVY: {"hip": Vector3(0.22, -0.27, -0.46), "ads": Vector3(0.0, -0.205, -0.32)},
 	C.W.MINIGUN: {"hip": Vector3(0.26, -0.3, -0.46), "ads": Vector3(0.21, -0.31, -0.36)},
 	# The arm in use sits in front, the other one off to its side: both stay in the picture.
@@ -47,6 +48,14 @@ const POSES := {
 }
 
 const BARREL_AXIS := Vector3(0.0, 0.07, 0.0)
+## Flipping the KP-20's magnifier: the gun rolls its left side up into view, the left hand comes
+## off the handguard to the magnifier, flicks it over on its hinge and goes back.
+const FLIP_TIME := 0.52
+## Where the left hand pushes the magnifier, in the gun's frame, just outside the hinge.
+const FLIP_HAND := Vector3(-0.058, 0.118, 0.05)
+## While the hand is up there the elbow drops below the screen, held in view space: tied to the gun
+## it would swing up into the picture as the gun rolls over.
+const FLIP_ELBOW := Vector3(-0.34, -0.78, -0.26)
 const RELOAD_ROCKET := "res://assets/models/armory/rocket_load.glb"
 const TUBE_HEIGHT := 0.09
 const ROCKET_TAIL := Vector3(0.0, 0.0, 0.3)
@@ -103,6 +112,17 @@ var _cell_home := Vector3.ZERO
 var _barrels: Node3D
 var _barrel_turn := 0.0
 var barrel_speed := 0.0
+## The flip magnifier, how far it is open (0 folded aside, 1 on the sight line), where it is
+## going, and the flip in progress (-1 when none).
+var _magnifier: Node3D
+var _mag_open := 0.0
+var _mag_from := 0.0
+var _mag_target := 0.0
+var _flip := -1.0
+var _flip_clicked := false
+## How far the left hand is off the handguard, and whether it still has to be put back.
+var _reach := 0.0
+var _reaching := false
 ## The rocket the left hand feeds into the back of the launcher.
 var _round: Node3D
 var _muzzle_sprite: MeshInstance3D
@@ -279,6 +299,11 @@ func set_weapon(id: int, parts: Array = []) -> void:
 	_blade = gun.get_node_or_null("Blade") as Node3D
 	_ignite = 0.0
 	_cell = gun.get_node_or_null("Cell") as Node3D
+	_magnifier = gun.get_node_or_null("Magnifier") as Node3D
+	_flip = -1.0
+	_mag_open = _mag_target
+	if _magnifier:
+		_magnifier.transform = WeaponFactory.magnifier_pose(_mag_open)
 	_barrels = gun.get_node_or_null("Spin") as Node3D
 	_barrel_turn = 0.0
 	if _cell:
@@ -373,6 +398,9 @@ func _build_arms() -> void:
 		arm.position = hand
 		n.add_child(arm)
 		_glove(n, hand, grip)
+		# Kept so a hand can reach somewhere else while its elbow stays put.
+		n.set_meta("hand", hand)
+		n.set_meta("elbow", elbow)
 		return n
 	var right_grip := Vector3(0.28, 0, 0)
 	var left_grip := Vector3(0, 0, PI)
@@ -420,6 +448,25 @@ func kick(strength: float) -> void:
 			_muzzle_sprite.rotation.z = randf() * TAU
 			_muzzle_sprite.scale = Vector3.ONE * randf_range(0.8, 1.3)
 			_muzzle_sprite.visible = true
+
+
+## Puts the magnifier on the sight line or folds it aside; with `animate` the hands do it.
+func set_sight(open: bool, animate := false) -> void:
+	_mag_target = 1.0 if open else 0.0
+	if not animate or _magnifier == null or gun == null:
+		_flip = -1.0
+		_mag_open = _mag_target
+		if _magnifier:
+			_magnifier.transform = WeaponFactory.magnifier_pose(_mag_open)
+		return
+	_mag_from = _mag_open
+	_flip = 0.0
+	_flip_clicked = false
+	Sfx.play("reload_out", -12.0, 1.6)
+
+
+func switching_sight() -> bool:
+	return _flip >= 0.0
 
 
 func start_reload(duration: float) -> void:
@@ -505,6 +552,11 @@ func animate(delta: float, aiming: bool, blocking: bool, sprinting: bool, speed:
 		rot += Vector3(-0.2, 0.75, 0.32) * _sprint
 		pos.x += sin(_bob_phase) * 0.016 * _sprint
 
+	if _flip >= 0.0:
+		var flipped := _flip_pose(pos, rot, delta)
+		pos = flipped[0]
+		rot = flipped[1]
+
 	if _reload > 0.0:
 		_reload -= delta
 		var parts := _reload_pose(pos, rot)
@@ -545,6 +597,10 @@ func animate(delta: float, aiming: bool, blocking: bool, sprinting: bool, speed:
 
 	holder.position = pos
 	holder.rotation = rot
+	# After the gun is placed, so the elbow can be held still in view space.
+	if _reaching:
+		_reach_left(_reach)
+		_reaching = _flip >= 0.0
 	if _sword_forearm:
 		_place_forearm(_sword_forearm, pos, ELBOW_R + Vector3(pos.x * 0.4, 0.0, 0.0))
 		_update_trail(delta)
@@ -552,6 +608,52 @@ func animate(delta: float, aiming: bool, blocking: bool, sprinting: bool, speed:
 
 func _ease(t: float) -> float:
 	return t * t * (3.0 - 2.0 * t)
+
+
+## The magnifier flip, in three beats: the gun rolls over and lifts to show its left side, the left
+## hand comes back to the magnifier and throws it over with a little overshoot as the latch catches,
+## then the gun settles back and the hand returns to the handguard.
+func _flip_pose(pos: Vector3, rot: Vector3, delta: float) -> Array:
+	_flip += delta / FLIP_TIME
+	var t := minf(_flip, 1.0)
+	var tilt := smoothstep(0.0, 0.24, t) * (1.0 - smoothstep(0.68, 1.0, t))
+	pos += Vector3(-0.03, 0.035, 0.045) * tilt
+	rot += Vector3(0.1, -0.2, -0.46) * tilt
+	_reach = smoothstep(0.1, 0.3, t) * (1.0 - smoothstep(0.62, 0.86, t))
+	_reaching = true
+	# Thrown over between 0.3 and 0.56 with an overshoot that springs back into the latch.
+	var k := clampf((t - 0.3) / 0.26, 0.0, 1.0)
+	var back := 1.0 + 2.70158 * pow(k - 1.0, 3.0) + 1.70158 * pow(k - 1.0, 2.0)
+	_mag_open = lerpf(_mag_from, _mag_target, back)
+	if _magnifier:
+		_magnifier.transform = WeaponFactory.magnifier_pose(_mag_open)
+	if t >= 0.56 and not _flip_clicked:
+		_flip_clicked = true
+		Sfx.play("reload_in", -9.0, 1.8)
+	var latch := smoothstep(0.55, 0.58, t) * (1.0 - smoothstep(0.58, 0.72, t))
+	pos.x -= latch * 0.012
+	rot.z += latch * 0.07
+	if _flip >= 1.0:
+		_flip = -1.0
+		_mag_open = _mag_target
+		if _magnifier:
+			_magnifier.transform = WeaponFactory.magnifier_pose(_mag_open)
+		_reach = 0.0
+	return [pos, rot]
+
+
+## Moves the left hand `amount` of the way from the handguard to the magnifier's tab. Only the hand
+## travels: the forearm turns and stretches to keep its elbow where it was, below the screen.
+func _reach_left(amount: float) -> void:
+	if arm_l == null or not arm_l.has_meta("hand") or arm_l.get_child_count() < 2:
+		return
+	var home: Vector3 = arm_l.get_meta("hand")
+	var hand := home.lerp(FLIP_HAND, amount)
+	var elbow: Vector3 = (arm_l.get_meta("elbow") as Vector3).lerp(holder.transform.affine_inverse() * FLIP_ELBOW, amount)
+	var forearm := arm_l.get_child(0) as Node3D
+	forearm.basis = Basis(Quaternion(Vector3.UP, (elbow - hand).normalized())) * Basis.from_scale(Vector3(1, hand.distance_to(elbow), 1))
+	forearm.position = hand
+	(arm_l.get_child(1) as Node3D).position = hand
 
 
 ## Loading from the back: the tube swings across the body until its rear end is in view, and the

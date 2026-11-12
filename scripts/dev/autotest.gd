@@ -31,6 +31,7 @@ extends Node
 ##   grenade-shots windowed: the throw, frame by frame, and each kind going off.
 ##   squad-net headless pair: the same over a real connection, see squad_network.gd.
 ##   squad-shots windowed: squad screens and the commander's tools, see squad_shots.gd.
+##   dmr headless: the KP-20's two sights, its balance and models, and everyone at the top level.
 
 ## Fixed stops of the perf test, as [name, feet position, starting yaw, pitch]. The view
 ## makes one full turn at each, so every run sees the same scenery.
@@ -138,6 +139,7 @@ func _ready() -> void:
 		"respawn": add_child(load("res://scripts/dev/respawn_test.gd").new())
 		"fixes": add_child(load("res://scripts/dev/fixes_test.gd").new())
 		"shield": add_child(load("res://scripts/dev/shield_test.gd").new())
+		"dmr": add_child(load("res://scripts/dev/dmr_test.gd").new())
 		"fixes-shots": add_child(load("res://scripts/dev/fixes_shots.gd").new())
 		"perf-weather": add_child(load("res://scripts/dev/weather_perf.gd").new())
 		"browser-shots": add_child(load("res://scripts/dev/browser_shots.gd").new())
@@ -1391,6 +1393,8 @@ func _count_meshes(n: Node) -> int:
 
 
 func _gear_test() -> void:
+	# This test is about earning levels, so the testing rule that puts everyone at the top is off.
+	Gear.everyone_max = false
 	_check_part_looks()
 	# Every sound the game can ask for must exist.
 	var names: Array[String] = ["sword_hum", "sword_on", "sword_off", "explosion_big", "reload_in", "reload_out", "empty_click"]

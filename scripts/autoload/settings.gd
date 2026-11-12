@@ -41,7 +41,7 @@ const KEYS := {
 	"move_forward": [KEY_W], "move_back": [KEY_S], "move_left": [KEY_A], "move_right": [KEY_D],
 	"jump": [KEY_SPACE], "sprint": [KEY_SHIFT], "crouch": [KEY_CTRL, KEY_C], "reload": [KEY_R],
 	"grenade": [KEY_G], "grenade_next": [KEY_H], "slot1": [KEY_1], "slot2": [KEY_2], "slot3": [KEY_3], "slot4": [KEY_4],
-	"melee": [KEY_F], "super": [KEY_B], "use": [KEY_E], "seat": [KEY_X], "lean_left": [KEY_Q], "lean_right": [KEY_E], "build_menu": [KEY_V], "build": [KEY_T], "artillery": [KEY_Y], "prone": [KEY_Z], "thermal": [KEY_N], "map": [KEY_M], "scoreboard": [KEY_TAB], "pause": [KEY_ESCAPE], "admin": [KEY_F1],
+	"melee": [KEY_F], "super": [KEY_B], "use": [KEY_E], "seat": [KEY_X], "lean_left": [KEY_Q], "lean_right": [KEY_E], "build_menu": [KEY_V], "build": [KEY_T], "artillery": [KEY_Y], "prone": [KEY_Z], "thermal": [KEY_N], "sight_switch": [KEY_V], "map": [KEY_M], "scoreboard": [KEY_TAB], "pause": [KEY_ESCAPE], "admin": [KEY_F1],
 }
 
 
@@ -104,8 +104,9 @@ func _build_input_map() -> void:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = key
 			InputMap.action_add_event(action, ev)
-	for pair: Array in [["fire", MOUSE_BUTTON_LEFT], ["aim", MOUSE_BUTTON_RIGHT]]:
-		InputMap.add_action(pair[0])
+	for pair: Array in [["fire", MOUSE_BUTTON_LEFT], ["aim", MOUSE_BUTTON_RIGHT], ["sight_switch", MOUSE_BUTTON_MIDDLE]]:
+		if not InputMap.has_action(pair[0]):
+			InputMap.add_action(pair[0])
 		var ev := InputEventMouseButton.new()
 		ev.button_index = pair[1]
 		InputMap.action_add_event(pair[0], ev)
